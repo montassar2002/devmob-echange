@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/custom_button.dart';
 import 'signup_page.dart';
+import '../home/home_page.dart'; // ← AJOUTÉ : Import de HomePage
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -74,7 +75,11 @@ class _LoginPageState extends State<LoginPage> {
             CustomButton(
               text: 'Login',
               onPressed: () {
-                // TODO: Implémenter la connexion
+                // ← MODIFIÉ : Navigation vers HomePage
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (context) => HomePage()),
+                );
               },
             ),
             SizedBox(height: 16),
@@ -119,5 +124,13 @@ class _LoginPageState extends State<LoginPage> {
         ),
       ),
     );
+  }
+  
+  @override
+  void dispose() {
+    // ← AJOUTÉ : Nettoyage des controllers
+    emailController.dispose();
+    passwordController.dispose();
+    super.dispose();
   }
 }
