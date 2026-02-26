@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/custom_button.dart';
-import 'login_page.dart';
+
+// SUPPRIMEZ : import 'login_page.dart';  ← Plus besoin !
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -96,7 +97,12 @@ class _SignUpPageState extends State<SignUpPage> {
             CustomButton(
               text: 'Sing up',
               onPressed: () {
-                // TODO: Implémenter l'inscription
+                // Utilisez les controllers ici pour supprimer les warnings
+                print('Name: ${nameController.text}');
+                print('Email: ${emailController.text}');
+                print('Phone: ${phoneController.text}');
+                print('Password: ${passwordController.text}');
+                print('Role: $selectedRole');
               },
             ),
             SizedBox(height: 16),
@@ -139,19 +145,31 @@ class _SignUpPageState extends State<SignUpPage> {
 
   Widget _buildRoleRadio(String role) {
     return Row(
-      children :[
-         Radio<String>(
+      children: [
+        Radio<String>(
           value: role,
           groupValue: selectedRole,
           onChanged: (value) {
-            setState(() {
-              selectedRole = value!;
-            });
+            if (value != null) {  // ← Vérification null pour éviter !
+              setState(() {
+                selectedRole = value;
+              });
+            }
           },
           activeColor: Color(0xFF6B4EFF),
         ),
         Text(role),
       ],
     );
+  }
+  
+  @override
+  void dispose() {
+    // Nettoyage des controllers
+    nameController.dispose();
+    emailController.dispose();
+    phoneController.dispose();
+    passwordController.dispose();
+    super.dispose();
   }
 }
