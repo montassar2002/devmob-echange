@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../models/item.dart';
 import '../../widgets/custom_button.dart';
+import '../reservation/reservation_page.dart';
+
 
 class ItemDetailPage extends StatefulWidget {
   final Item item;
@@ -265,7 +267,13 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
           text: 'Réserver Cet Objet',
           onPressed: () {
             // TODO: Navigation vers réservation
-          },
+            Navigator.push(
+             context,
+             MaterialPageRoute(
+        builder: (context) => ReservationPage(item: widget.item),
+             )
+            );
+          }
         ),
       ),
     );
