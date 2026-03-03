@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../widgets/item_card.dart';
 import 'search_page.dart';
+import '../../models/item.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -14,37 +15,9 @@ class _HomePageState extends State<HomePage> {
 
   final List<String> categories = ['Outils', 'Sport', 'Tech', 'Maison', 'Loisirs'];
   
-  // Objets populaires
-final List<Map<String, dynamic>> popularItems = [
-  {
-    'image': 'assets/images/perceuse.png',  // ← Chemin local
-    'title': 'Perceuse',
-    'isAvailable': true,
-    'rating': 5.0,
-    'location': 'Paris',
-    'price': 15.0,
-  },
-  {
-    'image': 'assets/images/velo.png',  // ← Chemin local
-    'title': 'Vélo VTT',
-    'isAvailable': false,
-    'rating': 5.0,
-    'location': 'Marseille',
-    'price': 8.0,
-  },
-];
-
-// Récemment ajoutés
-final List<Map<String, dynamic>> recentItems = [
-  {
-    'image': 'assets/images/tente.png',  // ← Chemin local
-    'title': 'Tente',
-    'isAvailable': true,
-    'rating': 4.0,
-    'location': 'USA',
-    'price': 7.0,
-  },
-];
+  // Utilisation du Model Item
+  final List<Item> popularItems = Item.sampleItems.sublist(0, 2);
+  final List<Item> recentItems = [Item.sampleItems[2]];
 
   @override
   Widget build(BuildContext context) {
@@ -185,14 +158,7 @@ final List<Map<String, dynamic>> recentItems = [
                 padding: EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
                   children: popularItems.map((item) {
-                    return ItemCard(
-                      image: item['image'],
-                      title: item['title'],
-                      isAvailable: item['isAvailable'],
-                      rating: item['rating'],
-                      location: item['location'],
-                      price: item['price'],
-                    );
+                    return ItemCard(item: item); // ← MODIFIÉ : passe l'objet Item
                   }).toList(),
                 ),
               ),
@@ -220,14 +186,7 @@ final List<Map<String, dynamic>> recentItems = [
                 padding: EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   children: recentItems.map((item) {
-                    return ItemCard(
-                      image: item['image'],
-                      title: item['title'],
-                      isAvailable: item['isAvailable'],
-                      rating: item['rating'],
-                      location: item['location'],
-                      price: item['price'],
-                    );
+                    return ItemCard(item: item); // ← MODIFIÉ : passe l'objet Item
                   }).toList(),
                 ),
               ),
@@ -237,65 +196,63 @@ final List<Map<String, dynamic>> recentItems = [
         ),
       ),
       
-      // Bottom Navigation
-      
       // Bottom Navigation avec 5 icônes
-bottomNavigationBar: BottomNavigationBar(
-  currentIndex: _selectedIndex,
-  onTap: (index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-    // Navigation vers les différentes pages
-    switch (index) {
-      case 0:
-        // Accueil - déjà sur cette page
-        break;
-      case 1:
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (context) => SearchPage()),
-        );
-        break;
-      case 2:
-        // TODO: Naviguer vers Ajouter Objet
-        break;
-      case 3:
-        // TODO: Naviguer vers Évaluations/Avis
-        break;
-      case 4:
-        // TODO: Naviguer vers Profil
-        break;
-    }
-  },
-  type: BottomNavigationBarType.fixed,
-  selectedItemColor: Color(0xFF6B4EFF),
-  unselectedItemColor: Colors.grey,
-  showSelectedLabels: false,
-  showUnselectedLabels: false,
-  items: [
-    BottomNavigationBarItem(
-      icon: Icon(Icons.home),
-      label: '',
-    ),
-    BottomNavigationBarItem(
-      icon: Icon(Icons.search),
-      label: '',
-    ),
-    BottomNavigationBarItem(
-      icon: Icon(Icons.add_circle_outline),
-      label: '',
-    ),
-    BottomNavigationBarItem(
-      icon: Icon(Icons.assignment_outlined), // Avis/Évaluations
-      label: '',
-    ),
-    BottomNavigationBarItem(
-      icon: Icon(Icons.person_outline), // Profil
-      label: '',
-    ),
-  ],
-),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedIndex,
+        onTap: (index) {
+          setState(() {
+            _selectedIndex = index;
+          });
+          // Navigation vers les différentes pages
+          switch (index) {
+            case 0:
+              // Accueil - déjà sur cette page
+              break;
+            case 1:
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => SearchPage()),
+              );
+              break;
+            case 2:
+              // TODO: Naviguer vers Ajouter Objet
+              break;
+            case 3:
+              // TODO: Naviguer vers Évaluations/Avis
+              break;
+            case 4:
+              // TODO: Naviguer vers Profil
+              break;
+          }
+        },
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: Color(0xFF6B4EFF),
+        unselectedItemColor: Colors.grey,
+        showSelectedLabels: false,
+        showUnselectedLabels: false,
+        items: [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: '',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.search),
+            label: '',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.add_circle_outline),
+            label: '',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.assignment_outlined), // Avis/Évaluations
+            label: '',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline), // Profil
+            label: '',
+          ),
+        ],
+      ),
     );
   }
 }
