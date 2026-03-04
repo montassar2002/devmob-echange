@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../widgets/item_card.dart';
 import 'search_page.dart';
 import '../../models/item.dart';
+import '../profile/owner_dashboard.dart'; // ← AJOUTÉ
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -158,7 +159,7 @@ class _HomePageState extends State<HomePage> {
                 padding: EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
                   children: popularItems.map((item) {
-                    return ItemCard(item: item); // ← MODIFIÉ : passe l'objet Item
+                    return ItemCard(item: item);
                   }).toList(),
                 ),
               ),
@@ -186,11 +187,11 @@ class _HomePageState extends State<HomePage> {
                 padding: EdgeInsets.symmetric(horizontal: 16),
                 child: Column(
                   children: recentItems.map((item) {
-                    return ItemCard(item: item); // ← MODIFIÉ : passe l'objet Item
+                    return ItemCard(item: item);
                   }).toList(),
                 ),
               ),
-              SizedBox(height: 100), // Espace pour bottom nav
+              SizedBox(height: 100),
             ],
           ),
         ),
@@ -221,7 +222,11 @@ class _HomePageState extends State<HomePage> {
               // TODO: Naviguer vers Évaluations/Avis
               break;
             case 4:
-              // TODO: Naviguer vers Profil
+              // ← MODIFIÉ : Navigation vers OwnerDashboard
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => OwnerDashboard()),
+              );
               break;
           }
         },
@@ -244,11 +249,11 @@ class _HomePageState extends State<HomePage> {
             label: '',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.assignment_outlined), // Avis/Évaluations
+            icon: Icon(Icons.assignment_outlined),
             label: '',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline), // Profil
+            icon: Icon(Icons.person_outline),
             label: '',
           ),
         ],
