@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/item.dart';
+import '../item/add_item_page.dart';
 
 class OwnerDashboard extends StatefulWidget {
   const OwnerDashboard({super.key});
@@ -70,22 +71,19 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
 
               // Stats
               Row(
-  mainAxisAlignment: MainAxisAlignment.spaceAround,
-  children: [
-    _buildStatCard('3', 'Objets', Icons.inventory_2, Colors.red, () {
-      // TODO: Naviguer vers la liste de tous les objets
-      print('Objets cliqué');
-    }),
-    _buildStatCard('5', 'Prêts', Icons.handshake, Colors.brown, () {
-      // TODO: Naviguer vers l'historique des prêts
-      print('Prêts cliqué');
-    }),
-    _buildStatCard('4.8', 'Note', Icons.star, Colors.amber, () {
-      // TODO: Naviguer vers les avis/évaluations
-      print('Note cliqué');
-    }),
-  ],
-),
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildStatCard('3', 'Objets', Icons.inventory_2, Colors.red, () {
+                    print('Objets cliqué');
+                  }),
+                  _buildStatCard('5', 'Prêts', Icons.handshake, Colors.brown, () {
+                    print('Prêts cliqué');
+                  }),
+                  _buildStatCard('4.8', 'Note', Icons.star, Colors.amber, () {
+                    print('Note cliqué');
+                  }),
+                ],
+              ),
               SizedBox(height: 24),
 
               // Demandes en attente
@@ -146,12 +144,15 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
               ),
               SizedBox(height: 20),
 
-              // Bouton Ajouter
+              // Bouton Ajouter - MODIFIÉ
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
                   onPressed: () {
-                    // TODO: Naviguer vers Ajouter Objet
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => AddItemPage()),
+                    );
                   },
                   icon: Icon(Icons.add),
                   label: Text('Ajouter un objet'),
@@ -174,37 +175,37 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
   }
 
   Widget _buildStatCard(String value, String label, IconData icon, Color color, VoidCallback? onTap) {
-  return GestureDetector(
-    onTap: onTap,
-    child: Container(
-      padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade100,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 28),
-          SizedBox(height: 8),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        decoration: BoxDecoration(
+          color: Colors.grey.shade100,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: color, size: 28),
+            SizedBox(height: 8),
+            Text(
+              value,
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+              ),
             ),
-          ),
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.grey,
-              fontSize: 12,
+            Text(
+              label,
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: 12,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 
   Widget _buildRequestCard(Map<String, dynamic> request) {
     return Container(
