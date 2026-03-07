@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import '../../widgets/item_card.dart';
 import 'search_page.dart';
 import '../../models/item.dart';
-import '../profile/owner_dashboard.dart'; // ← AJOUTÉ
+import '../profile/owner_dashboard.dart'; 
+import '../profile/renter_dashboard.dart'; 
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -219,6 +220,11 @@ class _HomePageState extends State<HomePage> {
               // TODO: Naviguer vers Ajouter Objet
               break;
             case 3:
+            Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => RenterDashboard()),
+             );
+  
               // TODO: Naviguer vers Évaluations/Avis
               break;
             case 4:
