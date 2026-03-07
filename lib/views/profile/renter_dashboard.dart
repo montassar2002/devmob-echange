@@ -8,9 +8,9 @@ class RenterDashboard extends StatefulWidget {
 }
 
 class _RenterDashboardState extends State<RenterDashboard> {
-  int _selectedTab = 0; // 0: En cours, 1: À venir, 2: Hist.
+  int _selectedTab = 1; // 0: En cours, 1: Hist.
   
-  final List<String> _tabs = ['En cours', 'À venir', 'Hist.'];
+  final List<String> _tabs = ['En cours', 'Hist.'];
 
   // Données de test
   final List<Map<String, dynamic>> _pendingReservations = [
@@ -29,7 +29,7 @@ class _RenterDashboardState extends State<RenterDashboard> {
 
   final List<Map<String, dynamic>> _confirmedReservations = [
     {
-      'image': 'assets/images/perr.png',
+      'image': 'assets/images/perce.png',
       'title': 'Appareil Canon EOS',
       'ownerName': 'Sophie L.',
       'ownerRating': 5.0,
@@ -52,6 +52,35 @@ class _RenterDashboardState extends State<RenterDashboard> {
     },
   ];
 
+  // Historique - réservations terminées
+  final List<Map<String, dynamic>> _historyReservations = [
+    {
+      'image': 'assets/images/velo.png',
+      'title': 'Vélo VTT Trek 2024',
+      'ownerName': 'Jean M.',
+      'ownerRating': 4.8,
+      'dates': '01-05 février',
+      'price': '40€',
+      'duration': '5 jours',
+      'status': 'Terminée',
+      'canReview': true,
+    },
+    {
+      'image': 'assets/images/perr.png',
+      'title': 'Tondeuse Bosch',
+      'ownerName': 'Marie D.',
+      'ownerRating': 5.0,
+      'dates': '15-20 janvier',
+      'price': '30€',
+      'duration': '5 jours',
+      'status': 'Terminée',
+      'canReview': false,
+    },
+  ];
+
+  String _searchQuery = '';
+  int _selectedBottomIndex = 3; // Icône réservations sélectionnée
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -72,7 +101,7 @@ class _RenterDashboardState extends State<RenterDashboard> {
               ),
             ),
             
-            // Onglets
+            // Onglets (2 seulement)
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 16),
               child: Row(
@@ -109,7 +138,7 @@ class _RenterDashboardState extends State<RenterDashboard> {
                 }).toList(),
               ),
             ),
-            SizedBox(height: 20),
+            SizedBox(height: 16),
             
             // Contenu selon l'onglet
             Expanded(
@@ -121,6 +150,60 @@ class _RenterDashboardState extends State<RenterDashboard> {
           ],
         ),
       ),
+      
+      // BOTTOM NAVIGATION BAR - AJOUTÉE
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedBottomIndex,
+        onTap: (index) {
+          setState(() {
+            _selectedBottomIndex = index;
+          });
+          // Navigation
+          switch (index) {
+            case 0: // Accueil
+              Navigator.pop(context);
+              break;
+            case 1: // Recherche
+              // TODO: Naviguer vers recherche
+              break;
+            case 2: // Ajouter
+              // TODO: Naviguer vers ajouter objet
+              break;
+            case 3: // Réservations (déjà ici)
+              break;
+            case 4: // Profil
+              // TODO: Naviguer vers profil
+              break;
+          }
+        },
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: Color(0xFF6B4EFF),
+        unselectedItemColor: Colors.grey,
+        showSelectedLabels: false,
+        showUnselectedLabels: false,
+        items: [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.home),
+            label: '',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.search),
+            label: '',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.add_circle_outline),
+            label: '',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.assignment_outlined),
+            label: '',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            label: '',
+          ),
+        ],
+      ),
     );
   }
 
@@ -129,9 +212,7 @@ class _RenterDashboardState extends State<RenterDashboard> {
       case 0:
         return _buildEnCours();
       case 1:
-        return Center(child: Text('À venir', style: TextStyle(color: Colors.grey)));
-      case 2:
-        return Center(child: Text('Historique', style: TextStyle(color: Colors.grey)));
+        return _buildHistorique();
       default:
         return SizedBox.shrink();
     }
@@ -175,6 +256,65 @@ class _RenterDashboardState extends State<RenterDashboard> {
         ),
         SizedBox(height: 12),
         ..._confirmedReservations.map((reservation) => _buildReservationCard(reservation)),
+        SizedBox(height: 100),
+      ],
+    );
+  }
+
+  Widget _buildHistorique() {
+    // Filtrer les réservations selon la recherche
+    final filteredHistory = _historyReservations.where((reservation) {
+      final query = _searchQuery.toLowerCase();
+      return reservation['title'].toString().toLowerCase().contains(query) ||
+             reservation['ownerName'].toString().toLowerCase().contains(query);
+    }).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Recherche
+        TextField(
+          onChanged: (value) {
+            setState(() {
+              _searchQuery = value;
+            });
+          },
+          decoration: InputDecoration(
+            hintText: 'Rechercher...',
+            prefixIcon: Icon(Icons.search, color: Colors.grey),
+            filled: true,
+            fillColor: Colors.grey.shade100,
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide.none,
+            ),
+          ),
+        ),
+        SizedBox(height: 12),
+        
+        // Filtre
+        Text(
+          'Filtrer par objet',
+          style: TextStyle(color: Colors.grey),
+        ),
+        SizedBox(height: 20),
+        
+        // Terminées
+        Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.green, size: 16),
+            SizedBox(width: 4),
+            Text(
+              'Terminées (${filteredHistory.length})',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: 12),
+        ...filteredHistory.map((reservation) => _buildHistoryCard(reservation)),
         SizedBox(height: 100),
       ],
     );
@@ -270,6 +410,172 @@ class _RenterDashboardState extends State<RenterDashboard> {
               ],
             ),
           ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHistoryCard(Map<String, dynamic> reservation) {
+    return Container(
+      margin: EdgeInsets.only(bottom: 16),
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Image
+              ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: Image.asset(
+                  reservation['image'],
+                  width: 80,
+                  height: 80,
+                  fit: BoxFit.cover,
+                ),
+              ),
+              SizedBox(width: 12),
+              
+              // Infos
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      reservation['title'],
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.person, size: 14, color: Colors.grey),
+                        SizedBox(width: 4),
+                        Text(reservation['ownerName']),
+                        SizedBox(width: 8),
+                        Icon(Icons.star, size: 14, color: Colors.orange),
+                        Text('${reservation['ownerRating']}'),
+                      ],
+                    ),
+                    SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.calendar_today, size: 14, color: Colors.grey),
+                        SizedBox(width: 4),
+                        Text(reservation['dates']),
+                      ],
+                    ),
+                    SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Icon(Icons.euro, size: 14, color: Colors.grey),
+                        SizedBox(width: 4),
+                        Text('${reservation['price']} - ${reservation['duration']}'),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 12),
+          // Boutons d'action
+          if (reservation['canReview']) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {},
+                    icon: Icon(Icons.check, size: 16),
+                    label: Text('Confirmer'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 8),
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {
+                      // TODO: Naviguer vers laisser un avis
+                    },
+                    icon: Icon(Icons.star, size: 16, color: Colors.white),
+                    label: Text('Laisser un avis'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Color(0xFF2196F3),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ] else ...[
+            Row(
+              children: [
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: () {},
+                    icon: Icon(Icons.check, size: 16),
+                    label: Text('Confirmer'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.green,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            SizedBox(height: 8),
+            Row(
+              children: [
+                Icon(Icons.star, size: 16, color: Colors.orange),
+                SizedBox(width: 4),
+                Text(
+                  'Avis déjà laissé',
+                  style: TextStyle(color: Colors.grey),
+                ),
+                SizedBox(width: 8),
+                GestureDetector(
+                  onTap: () {
+                    // TODO: Voir l'avis
+                  },
+                  child: Row(
+                    children: [
+                      Icon(Icons.visibility, size: 14, color: Colors.grey),
+                      SizedBox(width: 4),
+                      Text(
+                        'Voir l\'avis',
+                        style: TextStyle(
+                          color: Colors.grey,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );
