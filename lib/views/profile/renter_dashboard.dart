@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../models/item.dart';
+import '../review/leave_review_page.dart';
 
 class RenterDashboard extends StatefulWidget {
   const RenterDashboard({super.key});
@@ -151,7 +153,7 @@ class _RenterDashboardState extends State<RenterDashboard> {
         ),
       ),
       
-      // BOTTOM NAVIGATION BAR - AJOUTÉE
+      // BOTTOM NAVIGATION BAR
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedBottomIndex,
         onTap: (index) {
@@ -511,7 +513,12 @@ class _RenterDashboardState extends State<RenterDashboard> {
                 Expanded(
                   child: ElevatedButton.icon(
                     onPressed: () {
-                      // TODO: Naviguer vers laisser un avis
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => LeaveReviewPage(item: Item.sampleItems[0]),
+                        ),
+                      );
                     },
                     icon: Icon(Icons.star, size: 16, color: Colors.white),
                     label: Text('Laisser un avis'),
