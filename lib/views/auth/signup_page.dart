@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/custom_button.dart';
-
-// SUPPRIMEZ : import 'login_page.dart';  ← Plus besoin !
+import '../../services/auth_service.dart';
+import '../../models/user.dart' as app;
+import '../home/home_page.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({super.key});
@@ -16,8 +17,55 @@ class _SignUpPageState extends State<SignUpPage> {
   final emailController = TextEditingController();
   final phoneController = TextEditingController();
   final passwordController = TextEditingController();
-  
-  String selectedRole = 'Propriétaire'; // Par défaut
+  final AuthService _authService = AuthService();
+  String selectedRole = 'Propriétaire';
+  bool _isLoading = false;
+
+  Future<void> _signUp() async {
+    if (nameController.text.isEmpty ||
+        emailController.text.isEmpty ||
+        phoneController.text.isEmpty ||
+        passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Veuillez remplir tous les champs')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final role = selectedRole == 'Propriétaire'
+          ? app.UserRole.owner
+          : app.UserRole.renter;
+
+      final user = await _authService.signUp(
+        name: nameController.text,
+        email: emailController.text,
+        phone: phoneController.text,
+        password: passwordController.text,
+        role: role,
+      );
+
+      if (user != null && mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => HomePage()),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toString()),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +76,6 @@ class _SignUpPageState extends State<SignUpPage> {
         child: Column(
           children: [
             SizedBox(height: 60),
-            // Logo
             Container(
               width: 80,
               height: 80,
@@ -36,30 +83,20 @@ class _SignUpPageState extends State<SignUpPage> {
                 color: Color(0xFF6B4EFF),
                 shape: BoxShape.circle,
               ),
-              child: Icon(
-                Icons.sync_alt,
-                color: Colors.white,
-                size: 40,
-              ),
+              child: Icon(Icons.sync_alt, color: Colors.white, size: 40),
             ),
             SizedBox(height: 20),
-            // Titre
             Text(
               'Sign Up',
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 30),
-            // Full Name
             CustomTextField(
               hintText: 'Full Name',
               prefixIcon: Icons.person_outline,
               controller: nameController,
             ),
             SizedBox(height: 16),
-            // Email
             CustomTextField(
               hintText: 'Email Address',
               prefixIcon: Icons.email_outlined,
@@ -67,7 +104,6 @@ class _SignUpPageState extends State<SignUpPage> {
               keyboardType: TextInputType.emailAddress,
             ),
             SizedBox(height: 16),
-            // Téléphone
             CustomTextField(
               hintText: 'Numéro de téléphone',
               prefixIcon: Icons.phone_outlined,
@@ -75,7 +111,6 @@ class _SignUpPageState extends State<SignUpPage> {
               keyboardType: TextInputType.phone,
             ),
             SizedBox(height: 16),
-            // Password
             CustomTextField(
               hintText: 'Password',
               prefixIcon: Icons.lock_outline,
@@ -93,40 +128,25 @@ class _SignUpPageState extends State<SignUpPage> {
               ],
             ),
             SizedBox(height: 30),
-            // Bouton Sign up
-            CustomButton(
-              text: 'Sing up',
-              onPressed: () {
-                // Utilisez les controllers ici pour supprimer les warnings
-                print('Name: ${nameController.text}');
-                print('Email: ${emailController.text}');
-                print('Phone: ${phoneController.text}');
-                print('Password: ${passwordController.text}');
-                print('Role: $selectedRole');
-              },
-            ),
+            _isLoading
+                ? CircularProgressIndicator(color: Color(0xFF6B4EFF))
+                : CustomButton(
+                    text: 'Sign up',
+                    onPressed: _signUp,
+                  ),
             SizedBox(height: 16),
-            // Bouton Login
             CustomButton(
               text: 'Login',
               isOutlined: true,
-              onPressed: () {
-                Navigator.pop(context);
-              },
+              onPressed: () => Navigator.pop(context),
             ),
             SizedBox(height: 20),
-            // Lien bas
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  'Already have an account? ',
-                  style: TextStyle(color: Colors.grey),
-                ),
+                Text('Already have an account? ', style: TextStyle(color: Colors.grey)),
                 GestureDetector(
-                  onTap: () {
-                    Navigator.pop(context);
-                  },
+                  onTap: () => Navigator.pop(context),
                   child: Text(
                     'Login',
                     style: TextStyle(
@@ -150,10 +170,8 @@ class _SignUpPageState extends State<SignUpPage> {
           value: role,
           groupValue: selectedRole,
           onChanged: (value) {
-            if (value != null) {  // ← Vérification null pour éviter !
-              setState(() {
-                selectedRole = value;
-              });
+            if (value != null) {
+              setState(() => selectedRole = value);
             }
           },
           activeColor: Color(0xFF6B4EFF),
@@ -162,10 +180,9 @@ class _SignUpPageState extends State<SignUpPage> {
       ],
     );
   }
-  
+
   @override
   void dispose() {
-    // Nettoyage des controllers
     nameController.dispose();
     emailController.dispose();
     phoneController.dispose();

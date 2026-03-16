@@ -72,4 +72,5 @@ class DefaultFirebaseOptions {
     storageBucket: 'devmob-echange-77fde.firebasestorage.app',
     iosBundleId: 'com.example.devmobEchange',
   );
+
 }
