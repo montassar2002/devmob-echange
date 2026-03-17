@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../models/item.dart';
+import '../../models/reservation.dart';
+import '../../services/reservation_service.dart';
+import '../../providers/auth_provider.dart' as appProvider;
 import '../../widgets/custom_button.dart';
 
 class ReservationPage extends StatefulWidget {
@@ -15,25 +19,16 @@ class ReservationPage extends StatefulWidget {
 }
 
 class _ReservationPageState extends State<ReservationPage> {
-  DateTime startDate = DateTime(2025, 2, 15);
-  DateTime endDate = DateTime(2025, 2, 18);
+  DateTime startDate = DateTime.now().add(Duration(days: 1));
+  DateTime endDate = DateTime.now().add(Duration(days: 4));
   bool acceptConditions = false;
+  bool _isLoading = false;
+  final ReservationService _reservationService = ReservationService();
 
-  int get numberOfDays {
-    return endDate.difference(startDate).inDays;
-  }
-
-  double get totalLocation {
-    return numberOfDays * widget.item.price;
-  }
-
-  double get caution {
-    return 100.0; // Caution fixe
-  }
-
-  double get total {
-    return totalLocation + caution;
-  }
+  int get numberOfDays => endDate.difference(startDate).inDays;
+  double get totalLocation => numberOfDays * widget.item.price;
+  double get caution => 100.0;
+  double get total => totalLocation + caution;
 
   Future<void> _selectDate(bool isStart) async {
     final DateTime? picked = await showDatePicker(
@@ -53,6 +48,62 @@ class _ReservationPageState extends State<ReservationPage> {
           endDate = picked;
         }
       });
+    }
+  }
+
+  Future<void> _sendReservation() async {
+    final authProvider = Provider.of<appProvider.AuthProvider>(
+      context, listen: false
+    );
+
+    if (authProvider.currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Vous devez être connecté !')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final reservation = Reservation(
+        id: '',
+        itemId: widget.item.id,
+        itemTitle: widget.item.title,
+        itemImage: widget.item.image,
+        renterId: authProvider.currentUser!.id,
+        renterName: authProvider.currentUser!.name,
+        ownerId: widget.item.ownerId,
+        ownerName: widget.item.owner,
+        startDate: startDate,
+        endDate: endDate,
+        totalPrice: total,
+        status: ReservationStatus.pending,
+        createdAt: DateTime.now(),
+      );
+
+      await _reservationService.createReservation(reservation);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Demande envoyée avec succès !'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur : $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -104,12 +155,9 @@ class _ReservationPageState extends State<ReservationPage> {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      SizedBox(height: 4),
                       Text(
                         '${widget.item.price.toStringAsFixed(0)}€/jour',
-                        style: TextStyle(
-                          color: Colors.grey,
-                        ),
+                        style: TextStyle(color: Colors.grey),
                       ),
                     ],
                   ),
@@ -117,8 +165,8 @@ class _ReservationPageState extends State<ReservationPage> {
               ],
             ),
             SizedBox(height: 24),
-            
-            // Dates de location
+
+            // Dates
             Row(
               children: [
                 Icon(Icons.calendar_today, size: 16, color: Colors.grey),
@@ -133,7 +181,6 @@ class _ReservationPageState extends State<ReservationPage> {
               ],
             ),
             SizedBox(height: 12),
-            // Date début
             GestureDetector(
               onTap: () => _selectDate(true),
               child: Container(
@@ -142,19 +189,10 @@ class _ReservationPageState extends State<ReservationPage> {
                   color: Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Du: ${_formatDate(startDate)}',
-                      style: TextStyle(fontWeight: FontWeight.w500),
-                    ),
-                  ],
-                ),
+                child: Text('Du: ${_formatDate(startDate)}'),
               ),
             ),
             SizedBox(height: 8),
-            // Date fin
             GestureDetector(
               onTap: () => _selectDate(false),
               child: Container(
@@ -163,19 +201,11 @@ class _ReservationPageState extends State<ReservationPage> {
                   color: Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(20),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      'Au: ${_formatDate(endDate)}',
-                      style: TextStyle(fontWeight: FontWeight.w500),
-                    ),
-                  ],
-                ),
+                child: Text('Au: ${_formatDate(endDate)}'),
               ),
             ),
             SizedBox(height: 24),
-            
+
             // Récapitulatif
             Row(
               children: [
@@ -235,25 +265,8 @@ class _ReservationPageState extends State<ReservationPage> {
               ),
             ),
             SizedBox(height: 24),
-            
+
             // Conditions
-            Row(
-              children: [
-                Icon(Icons.description_outlined, size: 16, color: Colors.grey),
-                SizedBox(width: 8),
-                Text(
-                  'Conditions',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 12),
-            Text('• Remise en main propre requise'),
-            Text('• Caution remboursée après retour'),
-            SizedBox(height: 16),
             Row(
               children: [
                 Checkbox(
@@ -274,23 +287,18 @@ class _ReservationPageState extends State<ReservationPage> {
               ],
             ),
             SizedBox(height: 24),
-            
+
             // Bouton Envoyer
-            CustomButton(
-              text: 'Envoyer la demande',
-              onPressed: acceptConditions
-                  ? () {
-                      // TODO: Envoyer la demande de réservation
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Demande envoyée !'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
-                    }
-                  : () {}, // Désactivé si conditions non acceptées
-              backgroundColor: acceptConditions ? Color(0xFF2196F3) : Colors.grey,
-            ),
+            _isLoading
+                ? Center(child: CircularProgressIndicator())
+                : CustomButton(
+                    text: 'Envoyer la demande',
+                    onPressed: acceptConditions ? _sendReservation : () {},
+                    backgroundColor: acceptConditions
+                        ? Color(0xFF2196F3)
+                        : Colors.grey,
+                  ),
+            SizedBox(height: 32),
           ],
         ),
       ),

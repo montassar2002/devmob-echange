@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../models/reservation.dart';
 import '../../models/item.dart';
+import '../../services/reservation_service.dart';
+import '../../providers/auth_provider.dart' as appProvider;
 import '../review/leave_review_page.dart';
 
 class RenterDashboard extends StatefulWidget {
@@ -10,81 +14,19 @@ class RenterDashboard extends StatefulWidget {
 }
 
 class _RenterDashboardState extends State<RenterDashboard> {
-  int _selectedTab = 1; // 0: En cours, 1: Hist.
-  
+  int _selectedTab = 0;
   final List<String> _tabs = ['En cours', 'Hist.'];
-
-  // Données de test
-  final List<Map<String, dynamic>> _pendingReservations = [
-    {
-      'image': 'assets/images/perceuse.png',
-      'title': 'Perceuse Bosch',
-      'ownerName': 'Marc D.',
-      'ownerRating': 4.9,
-      'dates': '15-18 février',
-      'price': '45€',
-      'duration': '3 jours',
-      'status': 'En attente',
-      'statusColor': Colors.orange,
-    },
-  ];
-
-  final List<Map<String, dynamic>> _confirmedReservations = [
-    {
-      'image': 'assets/images/perce.png',
-      'title': 'Appareil Canon EOS',
-      'ownerName': 'Sophie L.',
-      'ownerRating': 5.0,
-      'dates': '20-22 février',
-      'price': '60€',
-      'duration': '3 jours',
-      'status': 'Confirmer',
-      'statusColor': Colors.green,
-    },
-    {
-      'image': 'assets/images/tente.png',
-      'title': 'Tente 4p',
-      'ownerName': 'Paul R.',
-      'ownerRating': 4.5,
-      'dates': '01-04 mars',
-      'price': '42€',
-      'duration': '4 jours',
-      'status': 'Confirmer',
-      'statusColor': Colors.green,
-    },
-  ];
-
-  // Historique - réservations terminées
-  final List<Map<String, dynamic>> _historyReservations = [
-    {
-      'image': 'assets/images/velo.png',
-      'title': 'Vélo VTT Trek 2024',
-      'ownerName': 'Jean M.',
-      'ownerRating': 4.8,
-      'dates': '01-05 février',
-      'price': '40€',
-      'duration': '5 jours',
-      'status': 'Terminée',
-      'canReview': true,
-    },
-    {
-      'image': 'assets/images/perr.png',
-      'title': 'Tondeuse Bosch',
-      'ownerName': 'Marie D.',
-      'ownerRating': 5.0,
-      'dates': '15-20 janvier',
-      'price': '30€',
-      'duration': '5 jours',
-      'status': 'Terminée',
-      'canReview': false,
-    },
-  ];
-
+  final ReservationService _reservationService = ReservationService();
   String _searchQuery = '';
-  int _selectedBottomIndex = 3; // Icône réservations sélectionnée
+  int _selectedBottomIndex = 3;
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<appProvider.AuthProvider>(
+      context, listen: false
+    );
+    final userId = authProvider.currentUser?.id ?? '';
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -102,8 +44,8 @@ class _RenterDashboardState extends State<RenterDashboard> {
                 ),
               ),
             ),
-            
-            // Onglets (2 seulement)
+
+            // Onglets
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 16),
               child: Row(
@@ -111,19 +53,16 @@ class _RenterDashboardState extends State<RenterDashboard> {
                   final index = entry.key;
                   final label = entry.value;
                   final isSelected = index == _selectedTab;
-                  
                   return Expanded(
                     child: GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _selectedTab = index;
-                        });
-                      },
+                      onTap: () => setState(() => _selectedTab = index),
                       child: Container(
                         margin: EdgeInsets.only(right: 8),
                         padding: EdgeInsets.symmetric(vertical: 8),
                         decoration: BoxDecoration(
-                          color: isSelected ? Color(0xFF2196F3) : Colors.grey.shade200,
+                          color: isSelected
+                              ? Color(0xFF2196F3)
+                              : Colors.grey.shade200,
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
@@ -131,7 +70,9 @@ class _RenterDashboardState extends State<RenterDashboard> {
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: isSelected ? Colors.white : Colors.grey,
-                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
                           ),
                         ),
                       ),
@@ -141,42 +82,57 @@ class _RenterDashboardState extends State<RenterDashboard> {
               ),
             ),
             SizedBox(height: 16),
-            
-            // Contenu selon l'onglet
+
+            // Contenu
             Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: _buildContent(),
+              child: StreamBuilder<List<Reservation>>(
+                stream: _reservationService.getRenterReservations(userId),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Center(child: CircularProgressIndicator());
+                  }
+
+                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                    return Center(
+                      child: Text(
+                        'Aucune réservation',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    );
+                  }
+
+                  final allReservations = snapshot.data!;
+
+                  // Séparer selon l'onglet
+                  if (_selectedTab == 0) {
+                    // En cours : pending + accepted
+                    final active = allReservations.where((r) =>
+                      r.status == ReservationStatus.pending ||
+                      r.status == ReservationStatus.accepted
+                    ).toList();
+                    return _buildEnCours(active);
+                  } else {
+                    // Historique : completed + rejected + cancelled
+                    final history = allReservations.where((r) =>
+                      r.status == ReservationStatus.completed ||
+                      r.status == ReservationStatus.rejected ||
+                      r.status == ReservationStatus.cancelled
+                    ).toList();
+                    return _buildHistorique(history);
+                  }
+                },
               ),
             ),
           ],
         ),
       ),
-      
-      // BOTTOM NAVIGATION BAR
+
+      // Bottom Navigation
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedBottomIndex,
         onTap: (index) {
-          setState(() {
-            _selectedBottomIndex = index;
-          });
-          // Navigation
-          switch (index) {
-            case 0: // Accueil
-              Navigator.pop(context);
-              break;
-            case 1: // Recherche
-              // TODO: Naviguer vers recherche
-              break;
-            case 2: // Ajouter
-              // TODO: Naviguer vers ajouter objet
-              break;
-            case 3: // Réservations (déjà ici)
-              break;
-            case 4: // Profil
-              // TODO: Naviguer vers profil
-              break;
-          }
+          setState(() => _selectedBottomIndex = index);
+          if (index == 0) Navigator.pop(context);
         },
         type: BottomNavigationBarType.fixed,
         selectedItemColor: Color(0xFF6B4EFF),
@@ -184,145 +140,130 @@ class _RenterDashboardState extends State<RenterDashboard> {
         showSelectedLabels: false,
         showUnselectedLabels: false,
         items: [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: ''),
+          BottomNavigationBarItem(icon: Icon(Icons.search), label: ''),
           BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: '',
-          ),
+              icon: Icon(Icons.add_circle_outline), label: ''),
           BottomNavigationBarItem(
-            icon: Icon(Icons.search),
-            label: '',
-          ),
+              icon: Icon(Icons.assignment_outlined), label: ''),
           BottomNavigationBarItem(
-            icon: Icon(Icons.add_circle_outline),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.assignment_outlined),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            label: '',
-          ),
+              icon: Icon(Icons.person_outline), label: ''),
         ],
       ),
     );
   }
 
-  Widget _buildContent() {
-    switch (_selectedTab) {
-      case 0:
-        return _buildEnCours();
-      case 1:
-        return _buildHistorique();
-      default:
-        return SizedBox.shrink();
-    }
-  }
-
-  Widget _buildEnCours() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // En attente
-        Row(
-          children: [
-            Icon(Icons.hourglass_empty, size: 16),
-            SizedBox(width: 4),
-            Text(
-              'En attente (${_pendingReservations.length})',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 12),
-        ..._pendingReservations.map((reservation) => _buildReservationCard(reservation)),
-        SizedBox(height: 24),
-        
-        // Confirmées
-        Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.green, size: 16),
-            SizedBox(width: 4),
-            Text(
-              'Confirmées (${_confirmedReservations.length})',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
-            ),
-          ],
-        ),
-        SizedBox(height: 12),
-        ..._confirmedReservations.map((reservation) => _buildReservationCard(reservation)),
-        SizedBox(height: 100),
-      ],
-    );
-  }
-
-  Widget _buildHistorique() {
-    // Filtrer les réservations selon la recherche
-    final filteredHistory = _historyReservations.where((reservation) {
-      final query = _searchQuery.toLowerCase();
-      return reservation['title'].toString().toLowerCase().contains(query) ||
-             reservation['ownerName'].toString().toLowerCase().contains(query);
-    }).toList();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Recherche
-        TextField(
-          onChanged: (value) {
-            setState(() {
-              _searchQuery = value;
-            });
-          },
-          decoration: InputDecoration(
-            hintText: 'Rechercher...',
-            prefixIcon: Icon(Icons.search, color: Colors.grey),
-            filled: true,
-            fillColor: Colors.grey.shade100,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide.none,
-            ),
-          ),
-        ),
-        SizedBox(height: 12),
-        
-        // Filtre
-        Text(
-          'Filtrer par objet',
+  Widget _buildEnCours(List<Reservation> reservations) {
+    if (reservations.isEmpty) {
+      return Center(
+        child: Text(
+          'Aucune réservation en cours',
           style: TextStyle(color: Colors.grey),
         ),
-        SizedBox(height: 20),
-        
-        // Terminées
-        Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.green, size: 16),
-            SizedBox(width: 4),
-            Text(
-              'Terminées (${filteredHistory.length})',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
-              ),
+      );
+    }
+
+    final pending = reservations
+        .where((r) => r.status == ReservationStatus.pending)
+        .toList();
+    final accepted = reservations
+        .where((r) => r.status == ReservationStatus.accepted)
+        .toList();
+
+    return SingleChildScrollView(
+      padding: EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (pending.isNotEmpty) ...[
+            Row(
+              children: [
+                Icon(Icons.hourglass_empty, size: 16),
+                SizedBox(width: 4),
+                Text(
+                  'En attente (${pending.length})',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
             ),
+            SizedBox(height: 12),
+            ...pending.map((r) => _buildReservationCard(r)),
+            SizedBox(height: 24),
           ],
-        ),
-        SizedBox(height: 12),
-        ...filteredHistory.map((reservation) => _buildHistoryCard(reservation)),
-        SizedBox(height: 100),
-      ],
+          if (accepted.isNotEmpty) ...[
+            Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.green, size: 16),
+                SizedBox(width: 4),
+                Text(
+                  'Confirmées (${accepted.length})',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            SizedBox(height: 12),
+            ...accepted.map((r) => _buildReservationCard(r)),
+          ],
+          SizedBox(height: 100),
+        ],
+      ),
     );
   }
 
-  Widget _buildReservationCard(Map<String, dynamic> reservation) {
+  Widget _buildHistorique(List<Reservation> reservations) {
+    final filtered = reservations.where((r) {
+      final query = _searchQuery.toLowerCase();
+      return r.itemTitle.toLowerCase().contains(query) ||
+          r.ownerName.toLowerCase().contains(query);
+    }).toList();
+
+    return SingleChildScrollView(
+      padding: EdgeInsets.symmetric(horizontal: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Recherche
+          TextField(
+            onChanged: (value) => setState(() => _searchQuery = value),
+            decoration: InputDecoration(
+              hintText: 'Rechercher...',
+              prefixIcon: Icon(Icons.search, color: Colors.grey),
+              filled: true,
+              fillColor: Colors.grey.shade100,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide.none,
+              ),
+            ),
+          ),
+          SizedBox(height: 20),
+          Row(
+            children: [
+              Icon(Icons.check_circle, color: Colors.green, size: 16),
+              SizedBox(width: 4),
+              Text(
+                'Terminées (${filtered.length})',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          SizedBox(height: 12),
+          ...filtered.map((r) => _buildHistoryCard(r)),
+          SizedBox(height: 100),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReservationCard(Reservation reservation) {
+    Color statusColor = Colors.orange;
+    String statusText = 'En attente';
+
+    if (reservation.status == ReservationStatus.accepted) {
+      statusColor = Colors.green;
+      statusText = 'Confirmée';
+    }
+
     return Container(
       margin: EdgeInsets.only(bottom: 16),
       padding: EdgeInsets.all(12),
@@ -333,25 +274,28 @@ class _RenterDashboardState extends State<RenterDashboard> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: Image.asset(
-              reservation['image'],
+              reservation.itemImage,
               width: 80,
               height: 80,
               fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) => Container(
+                width: 80,
+                height: 80,
+                color: Colors.grey.shade300,
+                child: Icon(Icons.image, color: Colors.grey),
+              ),
             ),
           ),
           SizedBox(width: 12),
-          
-          // Infos
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  reservation['title'],
+                  reservation.itemTitle,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 16,
@@ -362,10 +306,7 @@ class _RenterDashboardState extends State<RenterDashboard> {
                   children: [
                     Icon(Icons.person, size: 14, color: Colors.grey),
                     SizedBox(width: 4),
-                    Text(reservation['ownerName']),
-                    SizedBox(width: 8),
-                    Icon(Icons.star, size: 14, color: Colors.orange),
-                    Text('${reservation['ownerRating']}'),
+                    Text(reservation.ownerName),
                   ],
                 ),
                 SizedBox(height: 4),
@@ -373,7 +314,10 @@ class _RenterDashboardState extends State<RenterDashboard> {
                   children: [
                     Icon(Icons.calendar_today, size: 14, color: Colors.grey),
                     SizedBox(width: 4),
-                    Text(reservation['dates']),
+                    Text(
+                      '${_formatDate(reservation.startDate)} → ${_formatDate(reservation.endDate)}',
+                      style: TextStyle(fontSize: 12),
+                    ),
                   ],
                 ),
                 SizedBox(height: 4),
@@ -381,32 +325,23 @@ class _RenterDashboardState extends State<RenterDashboard> {
                   children: [
                     Icon(Icons.euro, size: 14, color: Colors.grey),
                     SizedBox(width: 4),
-                    Text('${reservation['price']} - ${reservation['duration']}'),
+                    Text('${reservation.totalPrice.toStringAsFixed(0)}€'),
                   ],
                 ),
                 SizedBox(height: 8),
-                // Badge statut
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                   decoration: BoxDecoration(
-                    color: reservation['statusColor'],
+                    color: statusColor,
                     borderRadius: BorderRadius.circular(20),
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (reservation['status'] == 'Confirmer')
-                        Icon(Icons.check, size: 14, color: Colors.white),
-                      SizedBox(width: 4),
-                      Text(
-                        reservation['status'],
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    statusText,
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
@@ -417,7 +352,7 @@ class _RenterDashboardState extends State<RenterDashboard> {
     );
   }
 
-  Widget _buildHistoryCard(Map<String, dynamic> reservation) {
+  Widget _buildHistoryCard(Reservation reservation) {
     return Container(
       margin: EdgeInsets.only(bottom: 16),
       padding: EdgeInsets.all(12),
@@ -430,25 +365,28 @@ class _RenterDashboardState extends State<RenterDashboard> {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Image
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: Image.asset(
-                  reservation['image'],
+                  reservation.itemImage,
                   width: 80,
                   height: 80,
                   fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    width: 80,
+                    height: 80,
+                    color: Colors.grey.shade300,
+                    child: Icon(Icons.image, color: Colors.grey),
+                  ),
                 ),
               ),
               SizedBox(width: 12),
-              
-              // Infos
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      reservation['title'],
+                      reservation.itemTitle,
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
@@ -459,10 +397,7 @@ class _RenterDashboardState extends State<RenterDashboard> {
                       children: [
                         Icon(Icons.person, size: 14, color: Colors.grey),
                         SizedBox(width: 4),
-                        Text(reservation['ownerName']),
-                        SizedBox(width: 8),
-                        Icon(Icons.star, size: 14, color: Colors.orange),
-                        Text('${reservation['ownerRating']}'),
+                        Text(reservation.ownerName),
                       ],
                     ),
                     SizedBox(height: 4),
@@ -470,7 +405,10 @@ class _RenterDashboardState extends State<RenterDashboard> {
                       children: [
                         Icon(Icons.calendar_today, size: 14, color: Colors.grey),
                         SizedBox(width: 4),
-                        Text(reservation['dates']),
+                        Text(
+                          '${_formatDate(reservation.startDate)} → ${_formatDate(reservation.endDate)}',
+                          style: TextStyle(fontSize: 12),
+                        ),
                       ],
                     ),
                     SizedBox(height: 4),
@@ -478,7 +416,7 @@ class _RenterDashboardState extends State<RenterDashboard> {
                       children: [
                         Icon(Icons.euro, size: 14, color: Colors.grey),
                         SizedBox(width: 4),
-                        Text('${reservation['price']} - ${reservation['duration']}'),
+                        Text('${reservation.totalPrice.toStringAsFixed(0)}€'),
                       ],
                     ),
                   ],
@@ -487,104 +425,39 @@ class _RenterDashboardState extends State<RenterDashboard> {
             ],
           ),
           SizedBox(height: 12),
-          // Boutons d'action
-          if (reservation['canReview']) ...[
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {},
-                    icon: Icon(Icons.check, size: 16),
-                    label: Text('Confirmer'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 8),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => LeaveReviewPage(item: Item.sampleItems[0]),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => LeaveReviewPage(
+                          item: Item.sampleItems[0],
                         ),
-                      );
-                    },
-                    icon: Icon(Icons.star, size: 16, color: Colors.white),
-                    label: Text('Laisser un avis'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Color(0xFF2196F3),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
                       ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ] else ...[
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {},
-                    icon: Icon(Icons.check, size: 16),
-                    label: Text('Confirmer'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(Icons.star, size: 16, color: Colors.orange),
-                SizedBox(width: 4),
-                Text(
-                  'Avis déjà laissé',
-                  style: TextStyle(color: Colors.grey),
-                ),
-                SizedBox(width: 8),
-                GestureDetector(
-                  onTap: () {
-                    // TODO: Voir l'avis
+                    );
                   },
-                  child: Row(
-                    children: [
-                      Icon(Icons.visibility, size: 14, color: Colors.grey),
-                      SizedBox(width: 4),
-                      Text(
-                        'Voir l\'avis',
-                        style: TextStyle(
-                          color: Colors.grey,
-                          decoration: TextDecoration.underline,
-                        ),
-                      ),
-                    ],
+                  icon: Icon(Icons.star, size: 16, color: Colors.white),
+                  label: Text('Laisser un avis'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Color(0xFF2196F3),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
                   ),
                 ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ],
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 }
