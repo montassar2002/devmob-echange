@@ -4,6 +4,7 @@ import '../../widgets/item_card.dart';
 import 'search_page.dart';
 import '../../models/item.dart';
 import '../../providers/auth_provider.dart' as appProvider;
+import '../../services/item_service.dart';
 import '../profile/owner_dashboard.dart';
 import '../profile/renter_dashboard.dart';
 import '../item/add_item_page.dart';
@@ -17,15 +18,17 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   int _selectedIndex = 0;
+  final ItemService _itemService = ItemService();
 
-  final List<String> categories = ['Outils', 'Sport', 'Tech', 'Maison', 'Loisirs'];
-  
-  final List<Item> popularItems = Item.sampleItems.sublist(0, 2);
-  final List<Item> recentItems = [Item.sampleItems[2]];
+  final List<String> categories = [
+    'Outils', 'Sport', 'Tech', 'Maison', 'Loisirs'
+  ];
 
   @override
   Widget build(BuildContext context) {
-    final authProvider = Provider.of<appProvider.AuthProvider>(context, listen: false);
+    final authProvider = Provider.of<appProvider.AuthProvider>(
+      context, listen: false
+    );
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -54,7 +57,7 @@ class _HomePageState extends State<HomePage> {
                   ],
                 ),
               ),
-              
+
               // Barre de recherche
               Padding(
                 padding: EdgeInsets.all(16),
@@ -76,7 +79,9 @@ class _HomePageState extends State<HomePage> {
                           onTap: () {
                             Navigator.push(
                               context,
-                              MaterialPageRoute(builder: (context) => SearchPage()),
+                              MaterialPageRoute(
+                                builder: (context) => SearchPage()
+                              ),
                             );
                           },
                         ),
@@ -129,7 +134,7 @@ class _HomePageState extends State<HomePage> {
               ),
               SizedBox(height: 24),
 
-              // Objets populaires
+              // Objets populaires - DEPUIS FIRESTORE
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
@@ -146,29 +151,33 @@ class _HomePageState extends State<HomePage> {
                   ],
                 ),
               ),
-              Padding(
-                padding: EdgeInsets.only(left: 16, top: 4),
-                child: Text(
-                  'Disponible',
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 12,
-                  ),
-                ),
-              ),
               SizedBox(height: 12),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: Row(
-                  children: popularItems.map((item) {
-                    return ItemCard(item: item);
-                  }).toList(),
-                ),
+              StreamBuilder<List<Item>>(
+                stream: _itemService.getPopularItems(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Center(child: CircularProgressIndicator());
+                  }
+
+                  // Si pas de données Firestore, utiliser les données locales
+                  final items = snapshot.hasData && snapshot.data!.isNotEmpty
+                      ? snapshot.data!
+                      : Item.sampleItems.sublist(0, 2);
+
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: Row(
+                      children: items.map((item) {
+                        return ItemCard(item: item);
+                      }).toList(),
+                    ),
+                  );
+                },
               ),
               SizedBox(height: 24),
 
-              // Récemment ajoutés
+              // Récemment ajoutés - DEPUIS FIRESTORE
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
@@ -186,21 +195,35 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
               SizedBox(height: 12),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 16),
-                child: Column(
-                  children: recentItems.map((item) {
-                    return ItemCard(item: item);
-                  }).toList(),
-                ),
+              StreamBuilder<List<Item>>(
+                stream: _itemService.getRecentItems(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Center(child: CircularProgressIndicator());
+                  }
+
+                  // Si pas de données Firestore, utiliser les données locales
+                  final items = snapshot.hasData && snapshot.data!.isNotEmpty
+                      ? snapshot.data!
+                      : [Item.sampleItems[2]];
+
+                  return Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16),
+                    child: Column(
+                      children: items.map((item) {
+                        return ItemCard(item: item);
+                      }).toList(),
+                    ),
+                  );
+                },
               ),
               SizedBox(height: 100),
             ],
           ),
         ),
       ),
-      
-      // Bottom Navigation avec 5 icônes
+
+      // Bottom Navigation
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (index) {
@@ -223,14 +246,13 @@ class _HomePageState extends State<HomePage> {
               );
               break;
             case 3:
-              // Réservations → RenterDashboard
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => RenterDashboard()),
               );
               break;
             case 4:
-              // Profil → selon le rôle
+              // Navigation selon le rôle
               if (authProvider.isOwner) {
                 Navigator.push(
                   context,
@@ -251,25 +273,16 @@ class _HomePageState extends State<HomePage> {
         showSelectedLabels: false,
         showUnselectedLabels: false,
         items: [
+          BottomNavigationBarItem(icon: Icon(Icons.home), label: ''),
+          BottomNavigationBarItem(icon: Icon(Icons.search), label: ''),
           BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: '',
+            icon: Icon(Icons.add_circle_outline), label: ''
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.search),
-            label: '',
+            icon: Icon(Icons.assignment_outlined), label: ''
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.add_circle_outline),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.assignment_outlined),
-            label: '',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            label: '',
+            icon: Icon(Icons.person_outline), label: ''
           ),
         ],
       ),
