@@ -325,49 +325,60 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
     );
   }
 
-  Widget _buildCalendarPreview() {
-    final days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    final dates = [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
-    
-    return Column(
-      children: [
-        Text(
-          'January 2022',
-          style: TextStyle(fontWeight: FontWeight.bold),
-        ),
-        SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: days.map((day) => Text(day, style: TextStyle(fontSize: 10, color: Colors.grey))).toList(),
-        ),
-        SizedBox(height: 8),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          alignment: WrapAlignment.center,
-          children: dates.map((date) {
-            final isSelected = date == 6 || date == 20;
-            final isToday = date == 13;
-            return Container(
-              width: 32,
-              height: 32,
-              decoration: BoxDecoration(
-                color: isSelected ? Colors.black : (isToday ? Colors.grey.shade300 : Colors.transparent),
-                shape: BoxShape.circle,
-              ),
-              child: Center(
-                child: Text(
-                  '$date',
-                  style: TextStyle(
-                    color: isSelected ? Colors.white : Colors.black,
-                    fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
-                  ),
+ Widget _buildCalendarPreview() {
+  final now = DateTime.now();
+  final days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  final List<String> months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  
+  // Générer les dates du mois actuel
+  final daysInMonth = DateTime(now.year, now.month + 1, 0).day;
+  final dates = List.generate(daysInMonth, (index) => index + 1);
+  
+  return Column(
+    children: [
+      Text(
+        '${months[now.month - 1]} ${now.year}',  // ← DYNAMIQUE
+        style: TextStyle(fontWeight: FontWeight.bold),
+      ),
+      SizedBox(height: 8),
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: days.map((day) => Text(
+          day,
+          style: TextStyle(fontSize: 10, color: Colors.grey),
+        )).toList(),
+      ),
+      SizedBox(height: 8),
+      Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        alignment: WrapAlignment.center,
+        children: dates.map((date) {
+          final isToday = date == now.day;
+          return Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: isToday ? Colors.black : Colors.transparent,
+              shape: BoxShape.circle,
+            ),
+            child: Center(
+              child: Text(
+                '$date',
+                style: TextStyle(
+                  color: isToday ? Colors.white : Colors.black,
+                  fontWeight: isToday ? FontWeight.bold : FontWeight.normal,
+                  fontSize: 12,
                 ),
               ),
-            );
-          }).toList(),
-        ),
-      ],
-    );
-  }
+            ),
+          );
+        }).toList(),
+      ),
+    ],
+  );
+}
 }
