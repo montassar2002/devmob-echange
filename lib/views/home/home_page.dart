@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../widgets/item_card.dart';
 import 'search_page.dart';
 import '../../models/item.dart';
-import '../profile/owner_dashboard.dart'; 
-import '../profile/renter_dashboard.dart'; 
+import '../../providers/auth_provider.dart' as appProvider;
+import '../profile/owner_dashboard.dart';
+import '../profile/renter_dashboard.dart';
+import '../item/add_item_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -17,12 +20,13 @@ class _HomePageState extends State<HomePage> {
 
   final List<String> categories = ['Outils', 'Sport', 'Tech', 'Maison', 'Loisirs'];
   
-  // Utilisation du Model Item
   final List<Item> popularItems = Item.sampleItems.sublist(0, 2);
   final List<Item> recentItems = [Item.sampleItems[2]];
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<appProvider.AuthProvider>(context, listen: false);
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -86,9 +90,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                       child: IconButton(
                         icon: Icon(Icons.tune, color: Colors.grey),
-                        onPressed: () {
-                          // Ouvrir filtres
-                        },
+                        onPressed: () {},
                       ),
                     ),
                   ],
@@ -205,10 +207,8 @@ class _HomePageState extends State<HomePage> {
           setState(() {
             _selectedIndex = index;
           });
-          // Navigation vers les différentes pages
           switch (index) {
             case 0:
-              // Accueil - déjà sur cette page
               break;
             case 1:
               Navigator.push(
@@ -217,22 +217,31 @@ class _HomePageState extends State<HomePage> {
               );
               break;
             case 2:
-              // TODO: Naviguer vers Ajouter Objet
-              break;
-            case 3:
-            Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => RenterDashboard()),
-             );
-  
-              // TODO: Naviguer vers Évaluations/Avis
-              break;
-            case 4:
-              // ← MODIFIÉ : Navigation vers OwnerDashboard
               Navigator.push(
                 context,
-                MaterialPageRoute(builder: (context) => OwnerDashboard()),
+                MaterialPageRoute(builder: (context) => AddItemPage()),
               );
+              break;
+            case 3:
+              // Réservations → RenterDashboard
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => RenterDashboard()),
+              );
+              break;
+            case 4:
+              // Profil → selon le rôle
+              if (authProvider.isOwner) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => OwnerDashboard()),
+                );
+              } else {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => RenterDashboard()),
+                );
+              }
               break;
           }
         },

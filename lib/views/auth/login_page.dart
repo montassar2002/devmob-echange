@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../widgets/custom_text_field.dart';
 import '../../widgets/custom_button.dart';
-import '../../services/auth_service.dart';
-import '../../models/user.dart' as app;
+import '../../providers/auth_provider.dart' as app;
+import '../../models/user.dart' as userModel;
 import '../home/home_page.dart';
 import 'signup_page.dart';
 
@@ -16,8 +17,6 @@ class LoginPage extends StatefulWidget {
 class _LoginPageState extends State<LoginPage> {
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
-  final AuthService _authService = AuthService();
-  bool _isLoading = false;
 
   Future<void> _login() async {
     if (emailController.text.isEmpty || passwordController.text.isEmpty) {
@@ -27,16 +26,14 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    setState(() => _isLoading = true);
-
     try {
-      final user = await _authService.signIn(
+      final authProvider = Provider.of<app.AuthProvider>(context, listen: false);
+      final success = await authProvider.signIn(
         emailController.text,
         passwordController.text,
       );
 
-      if (user != null && mounted) {
-        // Naviguer vers la page d'accueil
+      if (success && mounted) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(builder: (context) => HomePage()),
@@ -51,13 +48,13 @@ class _LoginPageState extends State<LoginPage> {
           ),
         );
       }
-    } finally {
-      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<app.AuthProvider>(context);
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -72,7 +69,6 @@ class _LoginPageState extends State<LoginPage> {
         padding: EdgeInsets.all(24),
         child: Column(
           children: [
-            // Logo
             Container(
               width: 80,
               height: 80,
@@ -88,7 +84,6 @@ class _LoginPageState extends State<LoginPage> {
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 40),
-            // Champ Email
             CustomTextField(
               hintText: 'Exemple@gmail.com',
               prefixIcon: Icons.email_outlined,
@@ -96,7 +91,6 @@ class _LoginPageState extends State<LoginPage> {
               keyboardType: TextInputType.emailAddress,
             ),
             SizedBox(height: 16),
-            // Champ Password
             CustomTextField(
               hintText: 'Password',
               prefixIcon: Icons.lock_outline,
@@ -104,15 +98,14 @@ class _LoginPageState extends State<LoginPage> {
               controller: passwordController,
             ),
             SizedBox(height: 40),
-            // Bouton Login
-            _isLoading
+            // Bouton Login avec indicateur de chargement
+            authProvider.isLoading
                 ? CircularProgressIndicator(color: Color(0xFF6B4EFF))
                 : CustomButton(
                     text: 'Login',
                     onPressed: _login,
                   ),
             SizedBox(height: 16),
-            // Bouton Sign up
             CustomButton(
               text: 'Sign up',
               isOutlined: true,
@@ -127,7 +120,8 @@ class _LoginPageState extends State<LoginPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text("Don't have an account? ", style: TextStyle(color: Colors.grey)),
+                Text("Don't have an account? ",
+                    style: TextStyle(color: Colors.grey)),
                 GestureDetector(
                   onTap: () {
                     Navigator.push(
