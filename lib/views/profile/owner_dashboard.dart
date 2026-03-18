@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../models/item.dart';
+import '../../models/reservation.dart';
+import '../../services/reservation_service.dart';
+import '../../services/item_service.dart';
+import '../../providers/auth_provider.dart' as appProvider;
 import '../item/add_item_page.dart';
 
 class OwnerDashboard extends StatefulWidget {
@@ -10,40 +15,17 @@ class OwnerDashboard extends StatefulWidget {
 }
 
 class _OwnerDashboardState extends State<OwnerDashboard> {
-  // Stats
-  final int totalObjects = 3;
-  final int totalPrets = 5;
-  final double rating = 4.8;
-
-  // Demandes en attente
-  final List<Map<String, dynamic>> pendingRequests = [
-    {
-      'itemImage': 'assets/images/perce.png',
-      'itemTitle': 'Perceuse Bosch',
-      'renterName': 'Jean D.',
-      'renterRating': 4.7,
-      'dates': '15-18 février',
-      'price': '45€',
-      'duration': '3 jours',
-      'message': 'Pour travaux...',
-    },
-    {
-      'itemImage': 'assets/images/velo.png',
-      'itemTitle': 'Vélo VTT',
-      'renterName': 'Sophie M.',
-      'renterRating': 5.0,
-      'dates': '20-25 février',
-      'price': '40€',
-      'duration': '5 jours',
-      'message': null,
-    },
-  ];
-
-  // Mes objets
-  final List<Item> myItems = Item.sampleItems.sublist(0, 2);
+  final ReservationService _reservationService = ReservationService();
+  final ItemService _itemService = ItemService();
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<appProvider.AuthProvider>(
+      context, listen: false
+    );
+    final userId = authProvider.currentUser?.id ?? '';
+    final userName = authProvider.currentUser?.name ?? 'Propriétaire';
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -54,7 +36,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
             children: [
               // Header
               Text(
-                'Bonjour Marc 👋',
+                'Bonjour $userName 👋',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.bold,
@@ -62,49 +44,102 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
               ),
               Text(
                 'Gérez vos objets',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
               SizedBox(height: 20),
 
-              // Stats
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildStatCard('3', 'Objets', Icons.inventory_2, Colors.red, () {
-                    print('Objets cliqué');
-                  }),
-                  _buildStatCard('5', 'Prêts', Icons.handshake, Colors.brown, () {
-                    print('Prêts cliqué');
-                  }),
-                  _buildStatCard('4.8', 'Note', Icons.star, Colors.amber, () {
-                    print('Note cliqué');
-                  }),
-                ],
+              // Stats depuis Firestore
+              StreamBuilder<List<Reservation>>(
+                stream: _reservationService.getOwnerReservations(userId),
+                builder: (context, snapshot) {
+                  final reservations = snapshot.data ?? [];
+                  final totalPrets = reservations
+                      .where((r) => r.status == ReservationStatus.completed)
+                      .length;
+                  final pending = reservations
+                      .where((r) => r.status == ReservationStatus.pending)
+                      .toList();
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Stats
+                      StreamBuilder<List<Item>>(
+                        stream: _itemService.getItems(),
+                        builder: (context, itemSnapshot) {
+                          final totalItems = itemSnapshot.data?.length ?? 0;
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _buildStatCard(
+                                '$totalItems',
+                                'Objets',
+                                Icons.inventory_2,
+                                Colors.red,
+                                () {},
+                              ),
+                              _buildStatCard(
+                                '$totalPrets',
+                                'Prêts',
+                                Icons.handshake,
+                                Colors.brown,
+                                () {},
+                              ),
+                              _buildStatCard(
+                                '4.8',
+                                'Note',
+                                Icons.star,
+                                Colors.amber,
+                                () {},
+                              ),
+                            ],
+                          );
+                        },
+                      ),
+                      SizedBox(height: 24),
+
+                      // Demandes en attente DEPUIS FIRESTORE
+                      Row(
+                        children: [
+                          Icon(Icons.notifications,
+                              color: Colors.orange, size: 20),
+                          SizedBox(width: 8),
+                          Text(
+                            'Demandes en attente (${pending.length})',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: 12),
+
+                      // Si pas de demandes
+                      if (pending.isEmpty)
+                        Container(
+                          padding: EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Center(
+                            child: Text(
+                              'Aucune demande en attente',
+                              style: TextStyle(color: Colors.grey),
+                            ),
+                          ),
+                        )
+                      else
+                        ...pending.map((reservation) =>
+                            _buildRequestCard(reservation, context)),
+                    ],
+                  );
+                },
               ),
               SizedBox(height: 24),
 
-              // Demandes en attente
-              Row(
-                children: [
-                  Icon(Icons.notifications, color: Colors.orange, size: 20),
-                  SizedBox(width: 8),
-                  Text(
-                    'Demandes en attente (${pendingRequests.length})',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-              SizedBox(height: 12),
-              ...pendingRequests.map((request) => _buildRequestCard(request)),
-              SizedBox(height: 24),
-
-              // Mes objets
+              // Mes objets DEPUIS FIRESTORE
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -128,23 +163,43 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                 ],
               ),
               SizedBox(height: 12),
-              GridView.builder(
-                shrinkWrap: true,
-                physics: NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 2,
-                  childAspectRatio: 0.8,
-                  crossAxisSpacing: 12,
-                  mainAxisSpacing: 12,
-                ),
-                itemCount: myItems.length,
-                itemBuilder: (context, index) {
-                  return _buildMyItemCard(myItems[index]);
+              StreamBuilder<List<Item>>(
+                stream: _itemService.getItems(),
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return Center(child: CircularProgressIndicator());
+                  }
+
+                  final items = snapshot.data ?? [];
+
+                  if (items.isEmpty) {
+                    return Center(
+                      child: Text(
+                        'Aucun objet ajouté',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    );
+                  }
+
+                  return GridView.builder(
+                    shrinkWrap: true,
+                    physics: NeverScrollableScrollPhysics(),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      childAspectRatio: 0.8,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                    ),
+                    itemCount: items.length,
+                    itemBuilder: (context, index) {
+                      return _buildMyItemCard(items[index]);
+                    },
+                  );
                 },
               ),
               SizedBox(height: 20),
 
-              // Bouton Ajouter - MODIFIÉ
+              // Bouton Ajouter
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
@@ -174,7 +229,13 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
     );
   }
 
-  Widget _buildStatCard(String value, String label, IconData icon, Color color, VoidCallback? onTap) {
+  Widget _buildStatCard(
+    String value,
+    String label,
+    IconData icon,
+    Color color,
+    VoidCallback? onTap,
+  ) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -189,17 +250,11 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
             SizedBox(height: 8),
             Text(
               value,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             Text(
               label,
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: 12,
-              ),
+              style: TextStyle(color: Colors.grey, fontSize: 12),
             ),
           ],
         ),
@@ -207,7 +262,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
     );
   }
 
-  Widget _buildRequestCard(Map<String, dynamic> request) {
+  Widget _buildRequestCard(Reservation reservation, BuildContext context) {
     return Container(
       margin: EdgeInsets.only(bottom: 16),
       padding: EdgeInsets.all(12),
@@ -224,10 +279,16 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
                 child: Image.asset(
-                  request['itemImage'],
+                  reservation.itemImage,
                   width: 80,
                   height: 80,
                   fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    width: 80,
+                    height: 80,
+                    color: Colors.grey.shade300,
+                    child: Icon(Icons.image, color: Colors.grey),
+                  ),
                 ),
               ),
               SizedBox(width: 12),
@@ -236,7 +297,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      request['itemTitle'],
+                      reservation.itemTitle,
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
@@ -247,10 +308,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                       children: [
                         Icon(Icons.person, size: 14, color: Colors.grey),
                         SizedBox(width: 4),
-                        Text(request['renterName']),
-                        SizedBox(width: 8),
-                        Icon(Icons.star, size: 14, color: Colors.orange),
-                        Text('${request['renterRating']}'),
+                        Text(reservation.renterName),
                       ],
                     ),
                     SizedBox(height: 4),
@@ -258,7 +316,10 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                       children: [
                         Icon(Icons.calendar_today, size: 14, color: Colors.grey),
                         SizedBox(width: 4),
-                        Text(request['dates']),
+                        Text(
+                          '${_formatDate(reservation.startDate)} → ${_formatDate(reservation.endDate)}',
+                          style: TextStyle(fontSize: 12),
+                        ),
                       ],
                     ),
                     SizedBox(height: 4),
@@ -266,36 +327,32 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                       children: [
                         Icon(Icons.euro, size: 14, color: Colors.grey),
                         SizedBox(width: 4),
-                        Text('${request['price']} - ${request['duration']}'),
+                        Text('${reservation.totalPrice.toStringAsFixed(0)}€'),
                       ],
                     ),
-                    if (request['message'] != null) ...[
-                      SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Icon(Icons.chat_bubble_outline, size: 14, color: Colors.grey),
-                          SizedBox(width: 4),
-                          Text(
-                            '"${request['message']}"',
-                            style: TextStyle(
-                              fontStyle: FontStyle.italic,
-                              color: Colors.grey,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
                   ],
                 ),
               ),
             ],
           ),
           SizedBox(height: 12),
+          // Boutons Accepter / Refuser
           Row(
             children: [
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () {},
+                  onPressed: () async {
+                    await _reservationService
+                        .acceptReservation(reservation.id);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Réservation acceptée !'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
+                  },
                   icon: Icon(Icons.check, size: 16),
                   label: Text('Accepter'),
                   style: ElevatedButton.styleFrom(
@@ -310,7 +367,18 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
               SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () {},
+                  onPressed: () async {
+                    await _reservationService
+                        .rejectReservation(reservation.id);
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Réservation refusée !'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
+                    }
+                  },
                   icon: Icon(Icons.close, size: 16),
                   label: Text('Refuser'),
                   style: ElevatedButton.styleFrom(
@@ -350,6 +418,8 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                   item.image,
                   height: 80,
                   fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) =>
+                      Icon(Icons.image, color: Colors.grey),
                 ),
               ),
             ),
@@ -400,5 +470,9 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
         ],
       ),
     );
+  }
+
+  String _formatDate(DateTime date) {
+    return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}';
   }
 }

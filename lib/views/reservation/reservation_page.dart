@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/item.dart';
 import '../../models/reservation.dart';
 import '../../services/reservation_service.dart';
@@ -66,6 +67,34 @@ class _ReservationPageState extends State<ReservationPage> {
     setState(() => _isLoading = true);
 
     try {
+      // Récupérer ownerId depuis Firestore si vide
+      String ownerId = widget.item.ownerId;
+
+      if (ownerId.isEmpty) {
+        print('🔵 ownerId vide, récupération depuis Firestore...');
+        final itemDoc = await FirebaseFirestore.instance
+            .collection('items')
+            .doc(widget.item.id)
+            .get();
+
+        if (itemDoc.exists) {
+          ownerId = itemDoc.data()?['ownerId'] ?? '';
+          print('✅ ownerId récupéré : $ownerId');
+        }
+      }
+
+      // Vérifier que le locataire ne réserve pas son propre objet
+      if (ownerId == authProvider.currentUser!.id) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Vous ne pouvez pas réserver votre propre objet !'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        setState(() => _isLoading = false);
+        return;
+      }
+
       final reservation = Reservation(
         id: '',
         itemId: widget.item.id,
@@ -73,7 +102,7 @@ class _ReservationPageState extends State<ReservationPage> {
         itemImage: widget.item.image,
         renterId: authProvider.currentUser!.id,
         renterName: authProvider.currentUser!.name,
-        ownerId: widget.item.ownerId,
+        ownerId: ownerId, // Utiliser ownerId récupéré
         ownerName: widget.item.owner,
         startDate: startDate,
         endDate: endDate,
@@ -232,7 +261,9 @@ class _ReservationPageState extends State<ReservationPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Location ($numberOfDays j × ${widget.item.price.toStringAsFixed(0)}€)'),
+                      Text(
+                        'Location ($numberOfDays j × ${widget.item.price.toStringAsFixed(0)}€)'
+                      ),
                       Text('${totalLocation.toStringAsFixed(0)}€'),
                     ],
                   ),
