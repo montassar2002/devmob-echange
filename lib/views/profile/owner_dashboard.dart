@@ -6,6 +6,7 @@ import '../../services/reservation_service.dart';
 import '../../services/item_service.dart';
 import '../../providers/auth_provider.dart' as appProvider;
 import '../item/add_item_page.dart';
+import '../auth/login_page.dart';
 
 class OwnerDashboard extends StatefulWidget {
   const OwnerDashboard({super.key});
@@ -17,6 +18,41 @@ class OwnerDashboard extends StatefulWidget {
 class _OwnerDashboardState extends State<OwnerDashboard> {
   final ReservationService _reservationService = ReservationService();
   final ItemService _itemService = ItemService();
+
+  Future<void> _logout(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Déconnexion'),
+        content: Text('Voulez-vous vous déconnecter ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(
+              'Déconnexion',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && context.mounted) {
+      final authProvider = Provider.of<appProvider.AuthProvider>(
+        context, listen: false
+      );
+      await authProvider.signOut();
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => LoginPage()),
+        (route) => false,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,17 +70,32 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
-              Text(
-                'Bonjour $userName 👋',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                'Gérez vos objets',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+              // Header avec bouton déconnexion
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Bonjour $userName 👋',
+                        style: TextStyle(
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Text(
+                        'Gérez vos objets',
+                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                  // Bouton déconnexion
+                  IconButton(
+                    icon: Icon(Icons.logout, color: Colors.red),
+                    onPressed: () => _logout(context),
+                  ),
+                ],
               ),
               SizedBox(height: 20),
 
@@ -63,7 +114,6 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Stats
                       StreamBuilder<List<Item>>(
                         stream: _itemService.getItems(),
                         builder: (context, itemSnapshot) {
@@ -71,34 +121,19 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                           return Row(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
-                              _buildStatCard(
-                                '$totalItems',
-                                'Objets',
-                                Icons.inventory_2,
-                                Colors.red,
-                                () {},
-                              ),
-                              _buildStatCard(
-                                '$totalPrets',
-                                'Prêts',
-                                Icons.handshake,
-                                Colors.brown,
-                                () {},
-                              ),
-                              _buildStatCard(
-                                '4.8',
-                                'Note',
-                                Icons.star,
-                                Colors.amber,
-                                () {},
-                              ),
+                              _buildStatCard('$totalItems', 'Objets',
+                                  Icons.inventory_2, Colors.red, () {}),
+                              _buildStatCard('$totalPrets', 'Prêts',
+                                  Icons.handshake, Colors.brown, () {}),
+                              _buildStatCard('4.8', 'Note',
+                                  Icons.star, Colors.amber, () {}),
                             ],
                           );
                         },
                       ),
                       SizedBox(height: 24),
 
-                      // Demandes en attente DEPUIS FIRESTORE
+                      // Demandes en attente
                       Row(
                         children: [
                           Icon(Icons.notifications,
@@ -115,7 +150,6 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                       ),
                       SizedBox(height: 12),
 
-                      // Si pas de demandes
                       if (pending.isEmpty)
                         Container(
                           padding: EdgeInsets.all(16),
@@ -139,7 +173,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
               ),
               SizedBox(height: 24),
 
-              // Mes objets DEPUIS FIRESTORE
+              // Mes objets
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -169,9 +203,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return Center(child: CircularProgressIndicator());
                   }
-
                   final items = snapshot.data ?? [];
-
                   if (items.isEmpty) {
                     return Center(
                       child: Text(
@@ -180,7 +212,6 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                       ),
                     );
                   }
-
                   return GridView.builder(
                     shrinkWrap: true,
                     physics: NeverScrollableScrollPhysics(),
@@ -229,13 +260,8 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
     );
   }
 
-  Widget _buildStatCard(
-    String value,
-    String label,
-    IconData icon,
-    Color color,
-    VoidCallback? onTap,
-  ) {
+  Widget _buildStatCard(String value, String label, IconData icon,
+      Color color, VoidCallback? onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -248,14 +274,9 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
           children: [
             Icon(icon, color: color, size: 28),
             SizedBox(height: 8),
-            Text(
-              value,
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              label,
-              style: TextStyle(color: Colors.grey, fontSize: 12),
-            ),
+            Text(value,
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            Text(label, style: TextStyle(color: Colors.grey, fontSize: 12)),
           ],
         ),
       ),
@@ -296,61 +317,47 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      reservation.itemTitle,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                    Text(reservation.itemTitle,
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16)),
+                    SizedBox(height: 4),
+                    Row(children: [
+                      Icon(Icons.person, size: 14, color: Colors.grey),
+                      SizedBox(width: 4),
+                      Text(reservation.renterName),
+                    ]),
+                    SizedBox(height: 4),
+                    Row(children: [
+                      Icon(Icons.calendar_today, size: 14, color: Colors.grey),
+                      SizedBox(width: 4),
+                      Text(
+                        '${_formatDate(reservation.startDate)} → ${_formatDate(reservation.endDate)}',
+                        style: TextStyle(fontSize: 12),
                       ),
-                    ),
+                    ]),
                     SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.person, size: 14, color: Colors.grey),
-                        SizedBox(width: 4),
-                        Text(reservation.renterName),
-                      ],
-                    ),
-                    SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.calendar_today, size: 14, color: Colors.grey),
-                        SizedBox(width: 4),
-                        Text(
-                          '${_formatDate(reservation.startDate)} → ${_formatDate(reservation.endDate)}',
-                          style: TextStyle(fontSize: 12),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.euro, size: 14, color: Colors.grey),
-                        SizedBox(width: 4),
-                        Text('${reservation.totalPrice.toStringAsFixed(0)}€'),
-                      ],
-                    ),
+                    Row(children: [
+                      Icon(Icons.euro, size: 14, color: Colors.grey),
+                      SizedBox(width: 4),
+                      Text('${reservation.totalPrice.toStringAsFixed(0)}€'),
+                    ]),
                   ],
                 ),
               ),
             ],
           ),
           SizedBox(height: 12),
-          // Boutons Accepter / Refuser
           Row(
             children: [
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: () async {
-                    await _reservationService
-                        .acceptReservation(reservation.id);
+                    await _reservationService.acceptReservation(reservation.id);
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Réservation acceptée !'),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text('Réservation acceptée !'),
+                        backgroundColor: Colors.green,
+                      ));
                     }
                   },
                   icon: Icon(Icons.check, size: 16),
@@ -359,8 +366,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                     backgroundColor: Colors.green,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
+                        borderRadius: BorderRadius.circular(20)),
                   ),
                 ),
               ),
@@ -368,15 +374,12 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: () async {
-                    await _reservationService
-                        .rejectReservation(reservation.id);
+                    await _reservationService.rejectReservation(reservation.id);
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('Réservation refusée !'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                        content: Text('Réservation refusée !'),
+                        backgroundColor: Colors.red,
+                      ));
                     }
                   },
                   icon: Icon(Icons.close, size: 16),
@@ -385,8 +388,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                     backgroundColor: Colors.red,
                     foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
-                    ),
+                        borderRadius: BorderRadius.circular(20)),
                   ),
                 ),
               ),
@@ -450,10 +452,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                 SizedBox(height: 4),
                 Text(
                   item.title,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
                   overflow: TextOverflow.ellipsis,
                 ),
                 SizedBox(height: 8),

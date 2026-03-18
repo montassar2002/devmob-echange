@@ -8,6 +8,7 @@ import '../../services/item_service.dart';
 import '../profile/owner_dashboard.dart';
 import '../profile/renter_dashboard.dart';
 import '../item/add_item_page.dart';
+import '../auth/login_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -24,6 +25,41 @@ class _HomePageState extends State<HomePage> {
     'Outils', 'Sport', 'Tech', 'Maison', 'Loisirs'
   ];
 
+  Future<void> _logout(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Déconnexion'),
+        content: Text('Voulez-vous vous déconnecter ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(
+              'Déconnexion',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && context.mounted) {
+      final authProvider = Provider.of<appProvider.AuthProvider>(
+        context, listen: false
+      );
+      await authProvider.signOut();
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => LoginPage()),
+        (route) => false,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<appProvider.AuthProvider>(
@@ -37,22 +73,32 @@ class _HomePageState extends State<HomePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header bleu
+              // Header bleu avec bouton déconnexion
               Container(
                 width: double.infinity,
                 color: Color(0xFF2196F3),
-                padding: EdgeInsets.symmetric(vertical: 16, horizontal: 20),
+                padding: EdgeInsets.symmetric(vertical: 8, horizontal: 20),
                 child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Icon(Icons.inventory_2, color: Colors.white),
-                    SizedBox(width: 8),
-                    Text(
-                      'DEVMOB - Echange',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    Row(
+                      children: [
+                        Icon(Icons.inventory_2, color: Colors.white),
+                        SizedBox(width: 8),
+                        Text(
+                          'DEVMOB - Echange',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                    // Bouton déconnexion
+                    IconButton(
+                      icon: Icon(Icons.logout, color: Colors.white),
+                      onPressed: () => _logout(context),
                     ),
                   ],
                 ),
@@ -134,7 +180,7 @@ class _HomePageState extends State<HomePage> {
               ),
               SizedBox(height: 24),
 
-              // Objets populaires - DEPUIS FIRESTORE
+              // Objets populaires
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
@@ -158,12 +204,9 @@ class _HomePageState extends State<HomePage> {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return Center(child: CircularProgressIndicator());
                   }
-
-                  // Si pas de données Firestore, utiliser les données locales
                   final items = snapshot.hasData && snapshot.data!.isNotEmpty
                       ? snapshot.data!
                       : Item.sampleItems.sublist(0, 2);
-
                   return SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     padding: EdgeInsets.symmetric(horizontal: 16),
@@ -177,7 +220,7 @@ class _HomePageState extends State<HomePage> {
               ),
               SizedBox(height: 24),
 
-              // Récemment ajoutés - DEPUIS FIRESTORE
+              // Récemment ajoutés
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: 16),
                 child: Row(
@@ -201,12 +244,9 @@ class _HomePageState extends State<HomePage> {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return Center(child: CircularProgressIndicator());
                   }
-
-                  // Si pas de données Firestore, utiliser les données locales
                   final items = snapshot.hasData && snapshot.data!.isNotEmpty
                       ? snapshot.data!
                       : [Item.sampleItems[2]];
-
                   return Padding(
                     padding: EdgeInsets.symmetric(horizontal: 16),
                     child: Column(
@@ -227,9 +267,7 @@ class _HomePageState extends State<HomePage> {
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: (index) {
-          setState(() {
-            _selectedIndex = index;
-          });
+          setState(() => _selectedIndex = index);
           switch (index) {
             case 0:
               break;
@@ -252,7 +290,6 @@ class _HomePageState extends State<HomePage> {
               );
               break;
             case 4:
-              // Navigation selon le rôle
               if (authProvider.isOwner) {
                 Navigator.push(
                   context,
@@ -276,14 +313,11 @@ class _HomePageState extends State<HomePage> {
           BottomNavigationBarItem(icon: Icon(Icons.home), label: ''),
           BottomNavigationBarItem(icon: Icon(Icons.search), label: ''),
           BottomNavigationBarItem(
-            icon: Icon(Icons.add_circle_outline), label: ''
-          ),
+            icon: Icon(Icons.add_circle_outline), label: ''),
           BottomNavigationBarItem(
-            icon: Icon(Icons.assignment_outlined), label: ''
-          ),
+            icon: Icon(Icons.assignment_outlined), label: ''),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline), label: ''
-          ),
+            icon: Icon(Icons.person_outline), label: ''),
         ],
       ),
     );

@@ -5,6 +5,7 @@ import '../../models/item.dart';
 import '../../services/reservation_service.dart';
 import '../../providers/auth_provider.dart' as appProvider;
 import '../review/leave_review_page.dart';
+import '../auth/login_page.dart';
 
 class RenterDashboard extends StatefulWidget {
   const RenterDashboard({super.key});
@@ -20,6 +21,41 @@ class _RenterDashboardState extends State<RenterDashboard> {
   String _searchQuery = '';
   int _selectedBottomIndex = 3;
 
+  Future<void> _logout(BuildContext context) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Déconnexion'),
+        content: Text('Voulez-vous vous déconnecter ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(
+              'Déconnexion',
+              style: TextStyle(color: Colors.red),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true && context.mounted) {
+      final authProvider = Provider.of<appProvider.AuthProvider>(
+        context, listen: false
+      );
+      await authProvider.signOut();
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => LoginPage()),
+        (route) => false,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<appProvider.AuthProvider>(
@@ -33,15 +69,25 @@ class _RenterDashboardState extends State<RenterDashboard> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
+            // Header avec bouton déconnexion
             Padding(
               padding: EdgeInsets.all(16),
-              child: Text(
-                'Mes Réservations',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Mes Réservations',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  // Bouton déconnexion
+                  IconButton(
+                    icon: Icon(Icons.logout, color: Colors.red),
+                    onPressed: () => _logout(context),
+                  ),
+                ],
               ),
             ),
 
@@ -91,7 +137,6 @@ class _RenterDashboardState extends State<RenterDashboard> {
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return Center(child: CircularProgressIndicator());
                   }
-
                   if (!snapshot.hasData || snapshot.data!.isEmpty) {
                     return Center(
                       child: Text(
@@ -100,19 +145,14 @@ class _RenterDashboardState extends State<RenterDashboard> {
                       ),
                     );
                   }
-
                   final allReservations = snapshot.data!;
-
-                  // Séparer selon l'onglet
                   if (_selectedTab == 0) {
-                    // En cours : pending + accepted
                     final active = allReservations.where((r) =>
                       r.status == ReservationStatus.pending ||
                       r.status == ReservationStatus.accepted
                     ).toList();
                     return _buildEnCours(active);
                   } else {
-                    // Historique : completed + rejected + cancelled
                     final history = allReservations.where((r) =>
                       r.status == ReservationStatus.completed ||
                       r.status == ReservationStatus.rejected ||
@@ -162,13 +202,10 @@ class _RenterDashboardState extends State<RenterDashboard> {
         ),
       );
     }
-
     final pending = reservations
-        .where((r) => r.status == ReservationStatus.pending)
-        .toList();
+        .where((r) => r.status == ReservationStatus.pending).toList();
     final accepted = reservations
-        .where((r) => r.status == ReservationStatus.accepted)
-        .toList();
+        .where((r) => r.status == ReservationStatus.accepted).toList();
 
     return SingleChildScrollView(
       padding: EdgeInsets.symmetric(horizontal: 16),
@@ -176,31 +213,23 @@ class _RenterDashboardState extends State<RenterDashboard> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (pending.isNotEmpty) ...[
-            Row(
-              children: [
-                Icon(Icons.hourglass_empty, size: 16),
-                SizedBox(width: 4),
-                Text(
-                  'En attente (${pending.length})',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
+            Row(children: [
+              Icon(Icons.hourglass_empty, size: 16),
+              SizedBox(width: 4),
+              Text('En attente (${pending.length})',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ]),
             SizedBox(height: 12),
             ...pending.map((r) => _buildReservationCard(r)),
             SizedBox(height: 24),
           ],
           if (accepted.isNotEmpty) ...[
-            Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.green, size: 16),
-                SizedBox(width: 4),
-                Text(
-                  'Confirmées (${accepted.length})',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
+            Row(children: [
+              Icon(Icons.check_circle, color: Colors.green, size: 16),
+              SizedBox(width: 4),
+              Text('Confirmées (${accepted.length})',
+                  style: TextStyle(fontWeight: FontWeight.bold)),
+            ]),
             SizedBox(height: 12),
             ...accepted.map((r) => _buildReservationCard(r)),
           ],
@@ -222,7 +251,6 @@ class _RenterDashboardState extends State<RenterDashboard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Recherche
           TextField(
             onChanged: (value) => setState(() => _searchQuery = value),
             decoration: InputDecoration(
@@ -237,16 +265,12 @@ class _RenterDashboardState extends State<RenterDashboard> {
             ),
           ),
           SizedBox(height: 20),
-          Row(
-            children: [
-              Icon(Icons.check_circle, color: Colors.green, size: 16),
-              SizedBox(width: 4),
-              Text(
-                'Terminées (${filtered.length})',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ],
-          ),
+          Row(children: [
+            Icon(Icons.check_circle, color: Colors.green, size: 16),
+            SizedBox(width: 4),
+            Text('Terminées (${filtered.length})',
+                style: TextStyle(fontWeight: FontWeight.bold)),
+          ]),
           SizedBox(height: 12),
           ...filtered.map((r) => _buildHistoryCard(r)),
           SizedBox(height: 100),
@@ -258,7 +282,6 @@ class _RenterDashboardState extends State<RenterDashboard> {
   Widget _buildReservationCard(Reservation reservation) {
     Color statusColor = Colors.orange;
     String statusText = 'En attente';
-
     if (reservation.status == ReservationStatus.accepted) {
       statusColor = Colors.green;
       statusText = 'Confirmée';
@@ -294,40 +317,30 @@ class _RenterDashboardState extends State<RenterDashboard> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  reservation.itemTitle,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 16,
+                Text(reservation.itemTitle,
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold, fontSize: 16)),
+                SizedBox(height: 4),
+                Row(children: [
+                  Icon(Icons.person, size: 14, color: Colors.grey),
+                  SizedBox(width: 4),
+                  Text(reservation.ownerName),
+                ]),
+                SizedBox(height: 4),
+                Row(children: [
+                  Icon(Icons.calendar_today, size: 14, color: Colors.grey),
+                  SizedBox(width: 4),
+                  Text(
+                    '${_formatDate(reservation.startDate)} → ${_formatDate(reservation.endDate)}',
+                    style: TextStyle(fontSize: 12),
                   ),
-                ),
+                ]),
                 SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.person, size: 14, color: Colors.grey),
-                    SizedBox(width: 4),
-                    Text(reservation.ownerName),
-                  ],
-                ),
-                SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.calendar_today, size: 14, color: Colors.grey),
-                    SizedBox(width: 4),
-                    Text(
-                      '${_formatDate(reservation.startDate)} → ${_formatDate(reservation.endDate)}',
-                      style: TextStyle(fontSize: 12),
-                    ),
-                  ],
-                ),
-                SizedBox(height: 4),
-                Row(
-                  children: [
-                    Icon(Icons.euro, size: 14, color: Colors.grey),
-                    SizedBox(width: 4),
-                    Text('${reservation.totalPrice.toStringAsFixed(0)}€'),
-                  ],
-                ),
+                Row(children: [
+                  Icon(Icons.euro, size: 14, color: Colors.grey),
+                  SizedBox(width: 4),
+                  Text('${reservation.totalPrice.toStringAsFixed(0)}€'),
+                ]),
                 SizedBox(height: 8),
                 Container(
                   padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -385,40 +398,30 @@ class _RenterDashboardState extends State<RenterDashboard> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      reservation.itemTitle,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
+                    Text(reservation.itemTitle,
+                        style: TextStyle(
+                            fontWeight: FontWeight.bold, fontSize: 16)),
+                    SizedBox(height: 4),
+                    Row(children: [
+                      Icon(Icons.person, size: 14, color: Colors.grey),
+                      SizedBox(width: 4),
+                      Text(reservation.ownerName),
+                    ]),
+                    SizedBox(height: 4),
+                    Row(children: [
+                      Icon(Icons.calendar_today, size: 14, color: Colors.grey),
+                      SizedBox(width: 4),
+                      Text(
+                        '${_formatDate(reservation.startDate)} → ${_formatDate(reservation.endDate)}',
+                        style: TextStyle(fontSize: 12),
                       ),
-                    ),
+                    ]),
                     SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.person, size: 14, color: Colors.grey),
-                        SizedBox(width: 4),
-                        Text(reservation.ownerName),
-                      ],
-                    ),
-                    SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.calendar_today, size: 14, color: Colors.grey),
-                        SizedBox(width: 4),
-                        Text(
-                          '${_formatDate(reservation.startDate)} → ${_formatDate(reservation.endDate)}',
-                          style: TextStyle(fontSize: 12),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.euro, size: 14, color: Colors.grey),
-                        SizedBox(width: 4),
-                        Text('${reservation.totalPrice.toStringAsFixed(0)}€'),
-                      ],
-                    ),
+                    Row(children: [
+                      Icon(Icons.euro, size: 14, color: Colors.grey),
+                      SizedBox(width: 4),
+                      Text('${reservation.totalPrice.toStringAsFixed(0)}€'),
+                    ]),
                   ],
                 ),
               ),
