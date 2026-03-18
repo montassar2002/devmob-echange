@@ -115,22 +115,36 @@ class _HomePageState extends State<HomePage> {
                           color: Colors.grey.shade100,
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: TextField(
-                          decoration: InputDecoration(
-                            hintText: 'Rechercher l\'objet...',
-                            prefixIcon: Icon(Icons.search, color: Colors.grey),
-                            border: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          onTap: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => SearchPage()
-                              ),
-                            );
-                          },
-                        ),
+                       // APRÈS - Vérification du rôle
+child: TextField(
+  decoration: InputDecoration(
+    hintText: authProvider.isOwner 
+        ? 'Recherche non disponible'  // ← Propriétaire
+        : 'Rechercher l\'objet...',   // ← Locataire
+    prefixIcon: Icon(Icons.search, color: Colors.grey),
+    border: InputBorder.none,
+    contentPadding: EdgeInsets.symmetric(vertical: 14),
+  ),
+  onTap: () {
+    if (!authProvider.isOwner) {
+      // Seulement le locataire accède à la recherche
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SearchPage()
+        ),
+      );
+    } else {
+      // Propriétaire : message informatif
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('La recherche est réservée aux locataires'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+    }
+  },
+),
                       ),
                     ),
                     SizedBox(width: 12),
@@ -265,61 +279,86 @@ class _HomePageState extends State<HomePage> {
 
       // Bottom Navigation
       bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: (index) {
-          setState(() => _selectedIndex = index);
-          switch (index) {
-            case 0:
-              break;
-            case 1:
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => SearchPage()),
-              );
-              break;
-            case 2:
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => AddItemPage()),
-              );
-              break;
-            case 3:
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => RenterDashboard()),
-              );
-              break;
-            case 4:
-              if (authProvider.isOwner) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => OwnerDashboard()),
-                );
-              } else {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => RenterDashboard()),
-                );
-              }
-              break;
-          }
-        },
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: Color(0xFF6B4EFF),
-        unselectedItemColor: Colors.grey,
-        showSelectedLabels: false,
-        showUnselectedLabels: false,
-        items: [
-          BottomNavigationBarItem(icon: Icon(Icons.home), label: ''),
-          BottomNavigationBarItem(icon: Icon(Icons.search), label: ''),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.add_circle_outline), label: ''),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.assignment_outlined), label: ''),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline), label: ''),
-        ],
-      ),
+  currentIndex: _selectedIndex,
+  onTap: (index) {
+    setState(() => _selectedIndex = index);
+    switch (index) {
+      case 0:
+        break;
+      case 1:
+        // Recherche - seulement pour le locataire
+        if (!authProvider.isOwner) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => SearchPage()),
+          );
+        } else {
+          // Propriétaire → message informatif
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Cette fonctionnalité est pour les locataires'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        break;
+      case 2:
+        // Ajouter objet - seulement pour le propriétaire
+        if (authProvider.isOwner) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => AddItemPage()),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Cette fonctionnalité est pour les propriétaires'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+        break;
+      case 3:
+        // Réservations - seulement pour le locataire
+        if (!authProvider.isOwner) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => RenterDashboard()),
+          );
+        }
+        break;
+      case 4:
+        // Profil - selon le rôle
+        if (authProvider.isOwner) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => OwnerDashboard()),
+          );
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => RenterDashboard()),
+          );
+        }
+        break;
+    }
+  },
+  type: BottomNavigationBarType.fixed,
+  selectedItemColor: Color(0xFF6B4EFF),
+  unselectedItemColor: Colors.grey,
+  showSelectedLabels: false,
+  showUnselectedLabels: false,
+  items: [
+    BottomNavigationBarItem(icon: Icon(Icons.home), label: ''),
+    BottomNavigationBarItem(icon: Icon(Icons.search), label: ''),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.add_circle_outline), label: ''),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.assignment_outlined), label: ''),
+    BottomNavigationBarItem(
+      icon: Icon(Icons.person_outline), label: ''),
+  ],
+),
     );
   }
 }
