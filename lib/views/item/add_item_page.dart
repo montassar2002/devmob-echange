@@ -1,4 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
+import 'dart:io';
+import 'dart:convert';
+import '../../models/item.dart';
+import '../../services/item_service.dart';
+import '../../providers/auth_provider.dart' as appProvider;
 import '../../widgets/custom_button.dart';
 
 class AddItemPage extends StatefulWidget {
@@ -15,23 +22,117 @@ class _AddItemPageState extends State<AddItemPage> {
   final _priceController = TextEditingController(text: '15');
   final _cautionController = TextEditingController(text: '100');
   final _locationController = TextEditingController();
+  final ItemService _itemService = ItemService();
+  final ImagePicker _picker = ImagePicker();
+  bool _isLoading = false;
+  File? _selectedImage;
+  String? _base64Image;
 
-  String _selectedCategory = 'Outil de bricolage';
-  
+  String _selectedCategory = 'Outils';
   final List<String> _categories = [
-    'Outil de bricolage',
-    'Sport',
-    'Tech',
-    'Maison',
-    'Loisirs',
+    'Outils', 'Sport', 'Tech', 'Maison', 'Loisirs',
   ];
 
-  final List<String> _photos = [
-    'assets/images/perceuse.png',
-    'assets/images/perceuse.png',
-    'assets/images/perceuse.png',
-    'assets/images/perceuse.png',
-  ];
+  Future<void> _pickImage() async {
+    final XFile? image = await _picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 600,
+      maxHeight: 600,
+      imageQuality: 70, // Réduire la qualité pour réduire la taille
+    );
+    if (image != null) {
+      final file = File(image.path);
+      final bytes = await file.readAsBytes();
+      final base64 = base64Encode(bytes);
+      
+      setState(() {
+        _selectedImage = file;
+        _base64Image = base64;
+      });
+      
+      print('✅ Image sélectionnée, taille Base64: ${base64.length} chars');
+    }
+  }
+
+  Future<void> _addItem() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    final authProvider = Provider.of<appProvider.AuthProvider>(
+      context, listen: false
+    );
+
+    if (authProvider.currentUser == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Vous devez être connecté !')),
+      );
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      // Utiliser Base64 si image sélectionnée, sinon image par défaut selon catégorie
+      String imageToSave;
+      
+      if (_base64Image != null) {
+        // Image depuis la galerie en Base64
+        imageToSave = 'data:image/jpeg;base64,$_base64Image';
+      } else {
+        // Image par défaut selon la catégorie
+        switch (_selectedCategory) {
+          case 'Sport':
+            imageToSave = 'assets/images/velo.png';
+            break;
+          case 'Camping':
+            imageToSave = 'assets/images/tente.png';
+            break;
+          default:
+            imageToSave = 'assets/images/perceuse.png';
+        }
+      }
+
+      final item = Item(
+        id: '',
+        image: imageToSave,
+        title: _titleController.text.trim(),
+        description: _descriptionController.text.trim(),
+        category: _selectedCategory,
+        price: double.tryParse(_priceController.text) ?? 0.0,
+        location: _locationController.text.trim(),
+        isAvailable: true,
+        rating: 0.0,
+        owner: authProvider.currentUser!.name,
+        ownerId: authProvider.currentUser!.id,
+        ownerRating: 0.0,
+        memberSince: DateTime.now().year.toString(),
+        distance: null,
+        createdAt: DateTime.now(),
+      );
+
+      await _itemService.addItem(item);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Objet ajouté avec succès ! ✅'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur : $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,56 +160,103 @@ class _AddItemPageState extends State<AddItemPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Photos
-              SizedBox(
-                height: 80,
-                child: ListView.builder(
-                  scrollDirection: Axis.horizontal,
-                  itemCount: _photos.length + 1,
-                  itemBuilder: (context, index) {
-                    if (index == _photos.length) {
-                      // Bouton ajouter photo
-                      return GestureDetector(
-                        onTap: () {
-                          // TODO: Ajouter une photo
-                        },
-                        child: Container(
-                          width: 80,
-                          height: 80,
-                          margin: EdgeInsets.only(right: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.grey.shade100,
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.grey.shade300),
+
+              // Section Photo - UNE SEULE PHOTO
+              _buildLabel('Photo de l\'objet'),
+              SizedBox(height: 12),
+              GestureDetector(
+                onTap: _pickImage,
+                child: Container(
+                  width: double.infinity,
+                  height: 200,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: _selectedImage != null
+                          ? Color(0xFF2196F3)
+                          : Colors.grey.shade300,
+                      width: _selectedImage != null ? 2 : 1,
+                    ),
+                  ),
+                  child: _selectedImage != null
+                      ? ClipRRect(
+                          borderRadius: BorderRadius.circular(11),
+                          child: Image.file(
+                            _selectedImage!,
+                            fit: BoxFit.cover,
                           ),
-                          child: Icon(Icons.add, color: Colors.grey),
+                        )
+                      : Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.add_photo_alternate_outlined,
+                              size: 60,
+                              color: Colors.grey,
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              'Appuyez pour ajouter une photo',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 14,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              'Depuis votre galerie',
+                              style: TextStyle(
+                                color: Colors.grey.shade400,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ),
-                      );
-                    }
-                    return Container(
-                      width: 80,
-                      height: 80,
-                      margin: EdgeInsets.only(right: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.grey.shade100,
-                        borderRadius: BorderRadius.circular(8),
-                        image: DecorationImage(
-                          image: AssetImage(_photos[index]),
-                          fit: BoxFit.cover,
-                        ),
-                      ),
-                    );
-                  },
                 ),
               ),
-              SizedBox(height: 16),
-              
+              if (_selectedImage != null)
+                Padding(
+                  padding: EdgeInsets.only(top: 8),
+                  child: Row(
+                    children: [
+                      Icon(Icons.check_circle,
+                          color: Color(0xFF2196F3), size: 16),
+                      SizedBox(width: 4),
+                      Text(
+                        'Photo sélectionnée ✅',
+                        style: TextStyle(
+                          color: Color(0xFF2196F3),
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Spacer(),
+                      GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _selectedImage = null;
+                            _base64Image = null;
+                          });
+                        },
+                        child: Text(
+                          'Supprimer',
+                          style: TextStyle(
+                            color: Colors.red,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              SizedBox(height: 20),
+
               // Titre
               _buildLabel('Titre', required: true),
               SizedBox(height: 8),
-              _buildTextField(
+              TextFormField(
                 controller: _titleController,
-                hintText: 'Perceuse Bosch...',
+                decoration: _inputDecoration('Ex: Perceuse Bosch...'),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Veuillez entrer un titre';
@@ -117,7 +265,7 @@ class _AddItemPageState extends State<AddItemPage> {
                 },
               ),
               SizedBox(height: 16),
-              
+
               // Catégorie
               _buildLabel('Catégorie', required: true),
               SizedBox(height: 8),
@@ -138,22 +286,21 @@ class _AddItemPageState extends State<AddItemPage> {
                       );
                     }).toList(),
                     onChanged: (String? newValue) {
-                      setState(() {
-                        _selectedCategory = newValue!;
-                      });
+                      setState(() => _selectedCategory = newValue!);
                     },
                   ),
                 ),
               ),
               SizedBox(height: 16),
-              
+
               // Description
               _buildLabel('Description', required: true),
               SizedBox(height: 8),
-              _buildTextField(
+              TextFormField(
                 controller: _descriptionController,
-                hintText: 'Perceuse professionnelle idéale pour tous travaux...',
                 maxLines: 3,
+                decoration: _inputDecoration(
+                    'Décrivez votre objet en détail...'),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Veuillez entrer une description';
@@ -162,50 +309,69 @@ class _AddItemPageState extends State<AddItemPage> {
                 },
               ),
               SizedBox(height: 16),
-              
+
               // Tarif journalier
-              _buildLabel('Tarif journalier (€)'),
+              _buildLabel('Tarif journalier (€)', required: true),
               SizedBox(height: 8),
-              _buildNumberField(
+              TextFormField(
                 controller: _priceController,
-                hintText: '15',
+                keyboardType: TextInputType.number,
+                decoration: _inputDecoration('15'),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Veuillez entrer un prix';
+                  }
+                  if (double.tryParse(value) == null) {
+                    return 'Nombre invalide';
+                  }
+                  return null;
+                },
               ),
               SizedBox(height: 16),
-              
+
               // Caution
               _buildLabel('Caution (€)'),
               SizedBox(height: 8),
-              _buildNumberField(
+              TextFormField(
                 controller: _cautionController,
-                hintText: '100',
+                keyboardType: TextInputType.number,
+                decoration: _inputDecoration('100'),
               ),
               SizedBox(height: 16),
-              
+
               // Localisation
-              _buildLabel('Localisation'),
+              _buildLabel('Localisation', required: true),
               SizedBox(height: 8),
-              _buildTextField(
+              TextFormField(
                 controller: _locationController,
-                hintText: 'Paris 11ème...',
-              ),
-              SizedBox(height: 32),
-              
-              // Bouton Ajouter
-              CustomButton(
-                text: 'Ajouter l\'objet',
-                onPressed: () {
-                  if (_formKey.currentState!.validate()) {
-                    // TODO: Sauvegarder l'objet
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Objet ajouté avec succès !'),
-                        backgroundColor: Colors.green,
-                      ),
-                    );
-                    Navigator.pop(context);
+                decoration: _inputDecoration('Ex: Paris 11ème...'),
+                validator: (value) {
+                  if (value == null || value.isEmpty) {
+                    return 'Veuillez entrer une localisation';
                   }
+                  return null;
                 },
               ),
+              SizedBox(height: 32),
+
+              // Bouton Ajouter
+              _isLoading
+                  ? Center(
+                      child: Column(
+                        children: [
+                          CircularProgressIndicator(),
+                          SizedBox(height: 8),
+                          Text(
+                            'Ajout en cours...',
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ],
+                      ),
+                    )
+                  : CustomButton(
+                      text: 'Ajouter l\'objet',
+                      onPressed: _addItem,
+                    ),
               SizedBox(height: 32),
             ],
           ),
@@ -234,53 +400,17 @@ class _AddItemPageState extends State<AddItemPage> {
     );
   }
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String hintText,
-    int maxLines = 1,
-    String? Function(String?)? validator,
-  }) {
-    return TextFormField(
-      controller: controller,
-      maxLines: maxLines,
-      validator: validator,
-      decoration: InputDecoration(
-        hintText: hintText,
-        filled: true,
-        fillColor: Colors.grey.shade100,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+  InputDecoration _inputDecoration(String hint) {
+    return InputDecoration(
+      hintText: hint,
+      filled: true,
+      fillColor: Colors.grey.shade100,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
       ),
-    );
-  }
-
-  Widget _buildNumberField({
-    required TextEditingController controller,
-    required String hintText,
-  }) {
-    return TextFormField(
-      controller: controller,
-      keyboardType: TextInputType.number,
-      decoration: InputDecoration(
-        hintText: hintText,
-        filled: true,
-        fillColor: Colors.grey.shade100,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide.none,
-        ),
-        contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        suffixIcon: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.arrow_drop_up, size: 16, color: Colors.grey),
-            Icon(Icons.arrow_drop_down, size: 16, color: Colors.grey),
-          ],
-        ),
-      ),
+      contentPadding:
+          EdgeInsets.symmetric(horizontal: 16, vertical: 14),
     );
   }
 

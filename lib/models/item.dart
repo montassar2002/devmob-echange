@@ -36,15 +36,17 @@ class Item {
   factory Item.fromJson(Map<String, dynamic> json) {
     return Item(
       id: json['id'] ?? '',
-      image: json['image']?.toString() ?? 'assets/images/perceuse.png', 
+      image: json['image']?.toString() ?? 'assets/images/perceuse.png',
       title: json['title']?.toString() ?? 'Sans titre',
       description: json['description']?.toString() ?? '',
       owner: json['owner']?.toString() ?? '',
       ownerId: json['ownerId']?.toString() ?? '',
-      ownerRating: double.tryParse(json['ownerRating']?.toString() ?? '0') ?? 0.0,
+      ownerRating: double.tryParse(
+              json['ownerRating']?.toString() ?? '0') ?? 0.0,
       memberSince: json['memberSince']?.toString() ?? '',
       category: json['category']?.toString() ?? '',
-      isAvailable: json['isAvailable'] == true || json['isAvailable'] == 'true',
+      isAvailable:
+          json['isAvailable'] == true || json['isAvailable'] == 'true',
       rating: double.tryParse(json['rating']?.toString() ?? '0') ?? 0.0,
       location: json['location']?.toString() ?? '',
       price: double.tryParse(json['price']?.toString() ?? '0') ?? 0.0,

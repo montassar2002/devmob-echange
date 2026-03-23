@@ -21,13 +21,14 @@ class ItemService {
     });
   }
 
-  // Récupérer les objets populaires
+  // Récupérer les objets populaires - LIMITE AUGMENTÉE
   Stream<List<Item>> getPopularItems() {
     return _firestore
         .collection('items')
-        .limit(5)
+        .limit(20) // ← Augmenté de 5 à 20
         .snapshots()
         .map((snapshot) {
+      print('📊 getPopularItems: ${snapshot.docs.length} items récupérés');
       return snapshot.docs.map((doc) {
         return Item.fromJson({
           'id': doc.id,
@@ -37,13 +38,14 @@ class ItemService {
     });
   }
 
-  // Récupérer les objets récents
+  // Récupérer les objets récents - LIMITE AUGMENTÉE
   Stream<List<Item>> getRecentItems() {
     return _firestore
         .collection('items')
-        .limit(5)
+        .limit(20) // ← Augmenté de 5 à 20
         .snapshots()
         .map((snapshot) {
+      print('📊 getRecentItems: ${snapshot.docs.length} items récupérés');
       return snapshot.docs.map((doc) {
         return Item.fromJson({
           'id': doc.id,
@@ -72,13 +74,11 @@ class ItemService {
     try {
       print('🔵 Ajout objet dans Firestore...');
       
-      // Récupérer l'utilisateur connecté
       final currentUser = _auth.currentUser;
       if (currentUser == null) {
         throw 'Vous devez être connecté pour ajouter un objet';
       }
 
-      // Ajouter l'ownerId automatiquement
       final itemData = item.toJson();
       itemData['ownerId'] = currentUser.uid;
       

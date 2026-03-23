@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/item.dart';
@@ -20,9 +21,34 @@ class ItemDetailPage extends StatefulWidget {
 class _ItemDetailPageState extends State<ItemDetailPage> {
   bool isExpanded = false;
 
+  // Afficher image selon le type (Base64 ou Asset)
+  Widget _buildImage(String imageUrl, {double height = 200}) {
+    if (imageUrl.startsWith('data:image')) {
+      try {
+        final base64Data = imageUrl.split(',')[1];
+        return Image.memory(
+          base64Decode(base64Data),
+          height: height,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) =>
+              Icon(Icons.image, color: Colors.grey, size: 80),
+        );
+      } catch (e) {
+        return Icon(Icons.image, color: Colors.grey, size: 80);
+      }
+    } else {
+      return Image.asset(
+        imageUrl,
+        height: height,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) =>
+            Icon(Icons.image, color: Colors.grey, size: 80),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Vérifier le rôle
     final authProvider = Provider.of<appProvider.AuthProvider>(
       context, listen: false
     );
@@ -53,7 +79,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Image principale
+            // Image principale - CORRIGÉ Base64 + Asset
             Container(
               height: 250,
               width: double.infinity,
@@ -62,11 +88,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Center(
-                child: Image.asset(
-                  widget.item.image,
-                  height: 200,
-                  fit: BoxFit.contain,
-                ),
+                child: _buildImage(widget.item.image, height: 200),
               ),
             ),
             SizedBox(height: 20),
@@ -103,10 +125,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                 SizedBox(width: 8),
                 Text(
                   'Membre depuis ${widget.item.memberSince}',
-                  style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 12,
-                  ),
+                  style: TextStyle(color: Colors.grey, fontSize: 12),
                 ),
               ],
             ),
@@ -147,24 +166,16 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
             // Description
             Text(
               '📝 Description',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 8),
             GestureDetector(
-              onTap: () {
-                setState(() {
-                  isExpanded = !isExpanded;
-                });
-              },
+              onTap: () => setState(() => isExpanded = !isExpanded),
               child: Text(
                 widget.item.description,
-                style: TextStyle(
-                  color: Colors.grey.shade700,
-                  height: 1.5,
-                ),
+                style: TextStyle(color: Colors.grey.shade700, height: 1.5),
+                maxLines: isExpanded ? null : 3,
+                overflow: isExpanded ? null : TextOverflow.ellipsis,
               ),
             ),
             Text(
@@ -179,10 +190,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
             // Caractéristiques
             Text(
               '📋 Caractéristiques',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 12),
             _buildCharacteristic('Catégorie', widget.item.category),
@@ -196,10 +204,7 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
             // Calendrier
             Text(
               '📅 Disponibilités',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
             SizedBox(height: 12),
             Container(
@@ -260,9 +265,9 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
         ),
       ),
 
-      // Bouton Réserver - CACHÉ pour le propriétaire
+      // Bouton Réserver
       bottomNavigationBar: isOwner
-          ? SizedBox(height: 0) // ← Propriétaire : pas de bouton
+          ? SizedBox(height: 0)
           : Container(
               padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -296,14 +301,8 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
       padding: EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Text(
-            '• $label: ',
-            style: TextStyle(color: Colors.grey),
-          ),
-          Text(
-            value,
-            style: TextStyle(fontWeight: FontWeight.w500),
-          ),
+          Text('• $label: ', style: TextStyle(color: Colors.grey)),
+          Text(value, style: TextStyle(fontWeight: FontWeight.w500)),
         ],
       ),
     );
@@ -356,10 +355,10 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
         SizedBox(height: 8),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: days.map((day) => Text(
-            day,
-            style: TextStyle(fontSize: 10, color: Colors.grey),
-          )).toList(),
+          children: days
+              .map((day) => Text(day,
+                  style: TextStyle(fontSize: 10, color: Colors.grey)))
+              .toList(),
         ),
         SizedBox(height: 8),
         Wrap(
@@ -380,9 +379,8 @@ class _ItemDetailPageState extends State<ItemDetailPage> {
                   '$date',
                   style: TextStyle(
                     color: isToday ? Colors.white : Colors.black,
-                    fontWeight: isToday
-                        ? FontWeight.bold
-                        : FontWeight.normal,
+                    fontWeight:
+                        isToday ? FontWeight.bold : FontWeight.normal,
                     fontSize: 12,
                   ),
                 ),
