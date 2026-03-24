@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/item.dart';
@@ -6,6 +7,7 @@ import '../../services/reservation_service.dart';
 import '../../services/item_service.dart';
 import '../../providers/auth_provider.dart' as appProvider;
 import '../item/add_item_page.dart';
+import '../item/edit_item_page.dart';
 import '../auth/login_page.dart';
 
 class OwnerDashboard extends StatefulWidget {
@@ -18,6 +20,32 @@ class OwnerDashboard extends StatefulWidget {
 class _OwnerDashboardState extends State<OwnerDashboard> {
   final ReservationService _reservationService = ReservationService();
   final ItemService _itemService = ItemService();
+
+  // Afficher image selon le type
+  Widget _buildImage(String imageUrl, {double height = 80}) {
+    if (imageUrl.startsWith('data:image')) {
+      try {
+        final base64Data = imageUrl.split(',')[1];
+        return Image.memory(
+          base64Decode(base64Data),
+          height: height,
+          fit: BoxFit.contain,
+          errorBuilder: (context, error, stackTrace) =>
+              Icon(Icons.image, color: Colors.grey, size: 40),
+        );
+      } catch (e) {
+        return Icon(Icons.image, color: Colors.grey, size: 40);
+      }
+    } else {
+      return Image.asset(
+        imageUrl,
+        height: height,
+        fit: BoxFit.contain,
+        errorBuilder: (context, error, stackTrace) =>
+            Icon(Icons.image, color: Colors.grey, size: 40),
+      );
+    }
+  }
 
   Future<void> _logout(BuildContext context) async {
     final confirm = await showDialog<bool>(
@@ -32,10 +60,8 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text(
-              'Déconnexion',
-              style: TextStyle(color: Colors.red),
-            ),
+            child: Text('Déconnexion',
+                style: TextStyle(color: Colors.red)),
           ),
         ],
       ),
@@ -51,6 +77,51 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
         MaterialPageRoute(builder: (context) => LoginPage()),
         (route) => false,
       );
+    }
+  }
+
+  // Supprimer un objet
+  Future<void> _deleteItem(BuildContext context, Item item) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Supprimer'),
+        content: Text('Voulez-vous supprimer "${item.title}" ?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Annuler'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Supprimer',
+                style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      try {
+        await _itemService.deleteItem(item.id);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Objet supprimé !'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Erreur : $e'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -90,7 +161,6 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                       ),
                     ],
                   ),
-                  // Bouton déconnexion
                   IconButton(
                     icon: Icon(Icons.logout, color: Colors.red),
                     onPressed: () => _logout(context),
@@ -105,28 +175,33 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                 builder: (context, snapshot) {
                   final reservations = snapshot.data ?? [];
                   final totalPrets = reservations
-                      .where((r) => r.status == ReservationStatus.completed)
+                      .where((r) =>
+                          r.status == ReservationStatus.completed)
                       .length;
                   final pending = reservations
-                      .where((r) => r.status == ReservationStatus.pending)
+                      .where((r) =>
+                          r.status == ReservationStatus.pending)
                       .toList();
 
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      // Stats
                       StreamBuilder<List<Item>>(
                         stream: _itemService.getItems(),
                         builder: (context, itemSnapshot) {
-                          final totalItems = itemSnapshot.data?.length ?? 0;
+                          final totalItems =
+                              itemSnapshot.data?.length ?? 0;
                           return Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            mainAxisAlignment:
+                                MainAxisAlignment.spaceAround,
                             children: [
                               _buildStatCard('$totalItems', 'Objets',
                                   Icons.inventory_2, Colors.red, () {}),
                               _buildStatCard('$totalPrets', 'Prêts',
                                   Icons.handshake, Colors.brown, () {}),
-                              _buildStatCard('4.8', 'Note',
-                                  Icons.star, Colors.amber, () {}),
+                              _buildStatCard('4.8', 'Note', Icons.star,
+                                  Colors.amber, () {}),
                             ],
                           );
                         },
@@ -179,7 +254,8 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                 children: [
                   Row(
                     children: [
-                      Icon(Icons.inventory_2, color: Colors.brown, size: 20),
+                      Icon(Icons.inventory_2,
+                          color: Colors.brown, size: 20),
                       SizedBox(width: 8),
                       Text(
                         'Mes objets',
@@ -197,10 +273,13 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                 ],
               ),
               SizedBox(height: 12),
+
+              // Liste des objets depuis Firestore
               StreamBuilder<List<Item>>(
                 stream: _itemService.getItems(),
                 builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
+                  if (snapshot.connectionState ==
+                      ConnectionState.waiting) {
                     return Center(child: CircularProgressIndicator());
                   }
                   final items = snapshot.data ?? [];
@@ -215,7 +294,8 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                   return GridView.builder(
                     shrinkWrap: true,
                     physics: NeverScrollableScrollPhysics(),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                    gridDelegate:
+                        SliverGridDelegateWithFixedCrossAxisCount(
                       crossAxisCount: 2,
                       childAspectRatio: 0.8,
                       crossAxisSpacing: 12,
@@ -223,7 +303,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                     ),
                     itemCount: items.length,
                     itemBuilder: (context, index) {
-                      return _buildMyItemCard(items[index]);
+                      return _buildMyItemCard(items[index], context);
                     },
                   );
                 },
@@ -237,7 +317,8 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                   onPressed: () {
                     Navigator.push(
                       context,
-                      MaterialPageRoute(builder: (context) => AddItemPage()),
+                      MaterialPageRoute(
+                          builder: (context) => AddItemPage()),
                     );
                   },
                   icon: Icon(Icons.add),
@@ -275,15 +356,18 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
             Icon(icon, color: color, size: 28),
             SizedBox(height: 8),
             Text(value,
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-            Text(label, style: TextStyle(color: Colors.grey, fontSize: 12)),
+                style: TextStyle(
+                    fontSize: 20, fontWeight: FontWeight.bold)),
+            Text(label,
+                style: TextStyle(color: Colors.grey, fontSize: 12)),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildRequestCard(Reservation reservation, BuildContext context) {
+  Widget _buildRequestCard(
+      Reservation reservation, BuildContext context) {
     return Container(
       margin: EdgeInsets.only(bottom: 16),
       padding: EdgeInsets.all(12),
@@ -299,16 +383,12 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
             children: [
               ClipRRect(
                 borderRadius: BorderRadius.circular(8),
-                child: Image.asset(
-                  reservation.itemImage,
+                child: Container(
                   width: 80,
                   height: 80,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => Container(
-                    width: 80,
-                    height: 80,
-                    color: Colors.grey.shade300,
-                    child: Icon(Icons.image, color: Colors.grey),
+                  color: Colors.grey.shade100,
+                  child: Center(
+                    child: _buildImage(reservation.itemImage, height: 70),
                   ),
                 ),
               ),
@@ -328,7 +408,8 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                     ]),
                     SizedBox(height: 4),
                     Row(children: [
-                      Icon(Icons.calendar_today, size: 14, color: Colors.grey),
+                      Icon(Icons.calendar_today,
+                          size: 14, color: Colors.grey),
                       SizedBox(width: 4),
                       Text(
                         '${_formatDate(reservation.startDate)} → ${_formatDate(reservation.endDate)}',
@@ -339,7 +420,8 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                     Row(children: [
                       Icon(Icons.euro, size: 14, color: Colors.grey),
                       SizedBox(width: 4),
-                      Text('${reservation.totalPrice.toStringAsFixed(0)}€'),
+                      Text(
+                          '${reservation.totalPrice.toStringAsFixed(0)}€'),
                     ]),
                   ],
                 ),
@@ -352,12 +434,15 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: () async {
-                    await _reservationService.acceptReservation(reservation.id);
+                    await _reservationService
+                        .acceptReservation(reservation.id);
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text('Réservation acceptée !'),
-                        backgroundColor: Colors.green,
-                      ));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Réservation acceptée !'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
                     }
                   },
                   icon: Icon(Icons.check, size: 16),
@@ -374,12 +459,15 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: () async {
-                    await _reservationService.rejectReservation(reservation.id);
+                    await _reservationService
+                        .rejectReservation(reservation.id);
                     if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                        content: Text('Réservation refusée !'),
-                        backgroundColor: Colors.red,
-                      ));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Réservation refusée !'),
+                          backgroundColor: Colors.red,
+                        ),
+                      );
                     }
                   },
                   icon: Icon(Icons.close, size: 16),
@@ -399,7 +487,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
     );
   }
 
-  Widget _buildMyItemCard(Item item) {
+  Widget _buildMyItemCard(Item item, BuildContext context) {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -409,20 +497,16 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Image - CORRIGÉ Base64 + Asset
           Expanded(
             child: Container(
               decoration: BoxDecoration(
                 color: Colors.grey.shade100,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(12)),
+                borderRadius:
+                    BorderRadius.vertical(top: Radius.circular(12)),
               ),
               child: Center(
-                child: Image.asset(
-                  item.image,
-                  height: 80,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) =>
-                      Icon(Icons.image, color: Colors.grey),
-                ),
+                child: _buildImage(item.image, height: 80),
               ),
             ),
           ),
@@ -434,7 +518,9 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                 Row(
                   children: [
                     Icon(
-                      item.isAvailable ? Icons.check_circle : Icons.cancel,
+                      item.isAvailable
+                          ? Icons.check_circle
+                          : Icons.cancel,
                       color: item.isAvailable ? Colors.green : Colors.red,
                       size: 16,
                     ),
@@ -442,7 +528,9 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                     Text(
                       item.isAvailable ? 'Dispo' : 'Réservé',
                       style: TextStyle(
-                        color: item.isAvailable ? Colors.green : Colors.red,
+                        color: item.isAvailable
+                            ? Colors.green
+                            : Colors.red,
                         fontSize: 12,
                         fontWeight: FontWeight.bold,
                       ),
@@ -452,15 +540,51 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                 SizedBox(height: 4),
                 Text(
                   item.title,
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 14,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
                 SizedBox(height: 8),
+                // Boutons Modifier et Supprimer - FONCTIONNELS
                 Row(
                   children: [
-                    Icon(Icons.edit, size: 16, color: Colors.orange),
+                    // Bouton Modifier
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                EditItemPage(item: item),
+                          ),
+                        );
+                      },
+                      child: Container(
+                        padding: EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.edit,
+                            size: 18, color: Colors.orange),
+                      ),
+                    ),
                     SizedBox(width: 8),
-                    Icon(Icons.delete, size: 16, color: Colors.grey),
+                    // Bouton Supprimer
+                    GestureDetector(
+                      onTap: () => _deleteItem(context, item),
+                      child: Container(
+                        padding: EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(Icons.delete,
+                            size: 18, color: Colors.red),
+                      ),
+                    ),
                   ],
                 ),
               ],

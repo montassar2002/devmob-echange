@@ -17,9 +17,12 @@ class _SignUpPageState extends State<SignUpPage> {
   final emailController = TextEditingController();
   final phoneController = TextEditingController();
   final passwordController = TextEditingController();
+
   final AuthService _authService = AuthService();
   String selectedRole = 'Propriétaire';
   bool _isLoading = false;
+
+  bool _obscurePassword = true;   // ← Ajouté
 
   Future<void> _signUp() async {
     if (nameController.text.isEmpty ||
@@ -27,7 +30,7 @@ class _SignUpPageState extends State<SignUpPage> {
         phoneController.text.isEmpty ||
         passwordController.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Veuillez remplir tous les champs')),
+        const SnackBar(content: Text('Veuillez remplir tous les champs')),
       );
       return;
     }
@@ -50,7 +53,7 @@ class _SignUpPageState extends State<SignUpPage> {
       if (user != null && mounted) {
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (context) => HomePage()),
+          MaterialPageRoute(builder: (context) => const HomePage()),
         );
       }
     } catch (e) {
@@ -72,82 +75,93 @@ class _SignUpPageState extends State<SignUpPage> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SingleChildScrollView(
-        padding: EdgeInsets.all(24),
+        padding: const EdgeInsets.all(24),
         child: Column(
           children: [
-            SizedBox(height: 60),
+            const SizedBox(height: 60),
             Container(
               width: 80,
               height: 80,
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: Color(0xFF6B4EFF),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.sync_alt, color: Colors.white, size: 40),
+              child: const Icon(Icons.sync_alt, color: Colors.white, size: 40),
             ),
-            SizedBox(height: 20),
-            Text(
+            const SizedBox(height: 20),
+            const Text(
               'Sign Up',
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
-            SizedBox(height: 30),
+            const SizedBox(height: 30),
+
             CustomTextField(
               hintText: 'Full Name',
               prefixIcon: Icons.person_outline,
               controller: nameController,
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
+
             CustomTextField(
               hintText: 'Email Address',
               prefixIcon: Icons.email_outlined,
               controller: emailController,
               keyboardType: TextInputType.emailAddress,
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
+
             CustomTextField(
               hintText: 'Numéro de téléphone',
               prefixIcon: Icons.phone_outlined,
               controller: phoneController,
               keyboardType: TextInputType.phone,
             ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
+
             CustomTextField(
               hintText: 'Password',
               prefixIcon: Icons.lock_outline,
               isPassword: true,
               controller: passwordController,
+              obscureText: _obscurePassword,           // ← Ajouté
+              onTogglePassword: () {                   // ← Ajouté
+                setState(() => _obscurePassword = !_obscurePassword);
+              },
             ),
-            SizedBox(height: 20),
-            // Choix du rôle
+
+            const SizedBox(height: 20),
+
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 _buildRoleRadio('Propriétaire'),
-                SizedBox(width: 30),
+                const SizedBox(width: 30),
                 _buildRoleRadio('Locataire'),
               ],
             ),
-            SizedBox(height: 30),
+            const SizedBox(height: 30),
+
             _isLoading
-                ? CircularProgressIndicator(color: Color(0xFF6B4EFF))
+                ? const CircularProgressIndicator(color: Color(0xFF6B4EFF))
                 : CustomButton(
                     text: 'Sign up',
                     onPressed: _signUp,
                   ),
-            SizedBox(height: 16),
+            const SizedBox(height: 16),
             CustomButton(
               text: 'Login',
               isOutlined: true,
               onPressed: () => Navigator.pop(context),
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text('Already have an account? ', style: TextStyle(color: Colors.grey)),
+                const Text('Already have an account? ',
+                    style: TextStyle(color: Colors.grey)),
                 GestureDetector(
                   onTap: () => Navigator.pop(context),
-                  child: Text(
+                  child: const Text(
                     'Login',
                     style: TextStyle(
                       color: Color(0xFF6B4EFF),
@@ -174,7 +188,7 @@ class _SignUpPageState extends State<SignUpPage> {
               setState(() => selectedRole = value);
             }
           },
-          activeColor: Color(0xFF6B4EFF),
+          activeColor: const Color(0xFF6B4EFF),
         ),
         Text(role),
       ],
