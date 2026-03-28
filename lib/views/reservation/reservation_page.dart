@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -31,12 +32,54 @@ class _ReservationPageState extends State<ReservationPage> {
   double get caution => 100.0;
   double get total => totalLocation + caution;
 
+  // Afficher image selon le type Base64 ou Asset
+  Widget _buildImage(String imageUrl,
+      {double width = 80, double height = 80}) {
+    if (imageUrl.startsWith('data:image')) {
+      try {
+        final base64Data = imageUrl.split(',')[1];
+        return Image.memory(
+          base64Decode(base64Data),
+          width: width,
+          height: height,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) => Container(
+            width: width,
+            height: height,
+            color: Colors.grey.shade200,
+            child: Icon(Icons.image, color: Colors.grey),
+          ),
+        );
+      } catch (e) {
+        return Container(
+          width: width,
+          height: height,
+          color: Colors.grey.shade200,
+          child: Icon(Icons.image, color: Colors.grey),
+        );
+      }
+    } else {
+      return Image.asset(
+        imageUrl,
+        width: width,
+        height: height,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => Container(
+          width: width,
+          height: height,
+          color: Colors.grey.shade200,
+          child: Icon(Icons.image, color: Colors.grey),
+        ),
+      );
+    }
+  }
+
   Future<void> _selectDate(bool isStart) async {
     final DateTime? picked = await showDatePicker(
       context: context,
       initialDate: isStart ? startDate : endDate,
       firstDate: DateTime.now(),
-      lastDate: DateTime(2026),
+      lastDate: DateTime(2027),
     );
     if (picked != null) {
       setState(() {
@@ -71,23 +114,21 @@ class _ReservationPageState extends State<ReservationPage> {
       String ownerId = widget.item.ownerId;
 
       if (ownerId.isEmpty) {
-        print('🔵 ownerId vide, récupération depuis Firestore...');
         final itemDoc = await FirebaseFirestore.instance
             .collection('items')
             .doc(widget.item.id)
             .get();
-
         if (itemDoc.exists) {
           ownerId = itemDoc.data()?['ownerId'] ?? '';
-          print('✅ ownerId récupéré : $ownerId');
         }
       }
 
-      // Vérifier que le locataire ne réserve pas son propre objet
+      // Empêcher propriétaire de réserver son propre objet
       if (ownerId == authProvider.currentUser!.id) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Vous ne pouvez pas réserver votre propre objet !'),
+            content:
+                Text('Vous ne pouvez pas réserver votre propre objet !'),
             backgroundColor: Colors.red,
           ),
         );
@@ -99,10 +140,10 @@ class _ReservationPageState extends State<ReservationPage> {
         id: '',
         itemId: widget.item.id,
         itemTitle: widget.item.title,
-        itemImage: widget.item.image,
+        itemImage: widget.item.image, // ← image Base64 ou asset
         renterId: authProvider.currentUser!.id,
         renterName: authProvider.currentUser!.name,
-        ownerId: ownerId, // Utiliser ownerId récupéré
+        ownerId: ownerId,
         ownerName: widget.item.owner,
         startDate: startDate,
         endDate: endDate,
@@ -160,16 +201,15 @@ class _ReservationPageState extends State<ReservationPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Objet sélectionné
+            // Objet sélectionné - IMAGE CORRIGÉE
             Row(
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: Image.asset(
+                  child: _buildImage(
                     widget.item.image,
                     width: 80,
                     height: 80,
-                    fit: BoxFit.cover,
                   ),
                 ),
                 SizedBox(width: 16),
@@ -213,7 +253,8 @@ class _ReservationPageState extends State<ReservationPage> {
             GestureDetector(
               onTap: () => _selectDate(true),
               child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(20),
@@ -225,7 +266,8 @@ class _ReservationPageState extends State<ReservationPage> {
             GestureDetector(
               onTap: () => _selectDate(false),
               child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding:
+                    EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
                   color: Colors.grey.shade100,
                   borderRadius: BorderRadius.circular(20),
@@ -238,7 +280,8 @@ class _ReservationPageState extends State<ReservationPage> {
             // Récapitulatif
             Row(
               children: [
-                Icon(Icons.receipt_outlined, size: 16, color: Colors.grey),
+                Icon(Icons.receipt_outlined,
+                    size: 16, color: Colors.grey),
                 SizedBox(width: 8),
                 Text(
                   'Récapitulatif',
@@ -262,7 +305,7 @@ class _ReservationPageState extends State<ReservationPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        'Location ($numberOfDays j × ${widget.item.price.toStringAsFixed(0)}€)'
+                        'Location ($numberOfDays j × ${widget.item.price.toStringAsFixed(0)}€)',
                       ),
                       Text('${totalLocation.toStringAsFixed(0)}€'),
                     ],
@@ -324,7 +367,8 @@ class _ReservationPageState extends State<ReservationPage> {
                 ? Center(child: CircularProgressIndicator())
                 : CustomButton(
                     text: 'Envoyer la demande',
-                    onPressed: acceptConditions ? _sendReservation : () {},
+                    onPressed:
+                        acceptConditions ? _sendReservation : () {},
                     backgroundColor: acceptConditions
                         ? Color(0xFF2196F3)
                         : Colors.grey,

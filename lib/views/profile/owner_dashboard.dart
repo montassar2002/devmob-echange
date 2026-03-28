@@ -9,6 +9,7 @@ import '../../providers/auth_provider.dart' as appProvider;
 import '../item/add_item_page.dart';
 import '../item/edit_item_page.dart';
 import '../auth/login_page.dart';
+import '../review/owner_reviews_page.dart';
 
 class OwnerDashboard extends StatefulWidget {
   const OwnerDashboard({super.key});
@@ -20,8 +21,9 @@ class OwnerDashboard extends StatefulWidget {
 class _OwnerDashboardState extends State<OwnerDashboard> {
   final ReservationService _reservationService = ReservationService();
   final ItemService _itemService = ItemService();
+  int _selectedBottomIndex = 4; // ← Dashboard est l'index 4
 
-  // Afficher image selon le type
+  // Afficher image selon le type Base64 ou Asset
   Widget _buildImage(String imageUrl, {double height = 80}) {
     if (imageUrl.startsWith('data:image')) {
       try {
@@ -157,7 +159,8 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                       ),
                       Text(
                         'Gérez vos objets',
-                        style: TextStyle(fontSize: 16, color: Colors.grey),
+                        style: TextStyle(
+                            fontSize: 16, color: Colors.grey),
                       ),
                     ],
                   ),
@@ -171,7 +174,8 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
 
               // Stats depuis Firestore
               StreamBuilder<List<Reservation>>(
-                stream: _reservationService.getOwnerReservations(userId),
+                stream:
+                    _reservationService.getOwnerReservations(userId),
                 builder: (context, snapshot) {
                   final reservations = snapshot.data ?? [];
                   final totalPrets = reservations
@@ -196,12 +200,24 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                             mainAxisAlignment:
                                 MainAxisAlignment.spaceAround,
                             children: [
-                              _buildStatCard('$totalItems', 'Objets',
-                                  Icons.inventory_2, Colors.red, () {}),
-                              _buildStatCard('$totalPrets', 'Prêts',
-                                  Icons.handshake, Colors.brown, () {}),
-                              _buildStatCard('4.8', 'Note', Icons.star,
-                                  Colors.amber, () {}),
+                              _buildStatCard(
+                                  '$totalItems',
+                                  'Objets',
+                                  Icons.inventory_2,
+                                  Colors.red,
+                                  () {}),
+                              _buildStatCard(
+                                  '$totalPrets',
+                                  'Prêts',
+                                  Icons.handshake,
+                                  Colors.brown,
+                                  () {}),
+                              _buildStatCard(
+                                  '4.8',
+                                  'Note',
+                                  Icons.star,
+                                  Colors.amber,
+                                  () {}),
                             ],
                           );
                         },
@@ -274,7 +290,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
               ),
               SizedBox(height: 12),
 
-              // Liste des objets depuis Firestore
+              // Liste des objets
               StreamBuilder<List<Item>>(
                 stream: _itemService.getItems(),
                 builder: (context, snapshot) {
@@ -338,6 +354,63 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
           ),
         ),
       ),
+
+      // Bottom Navigation
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _selectedBottomIndex,
+        onTap: (index) {
+          setState(() => _selectedBottomIndex = index);
+          switch (index) {
+            case 0:
+              Navigator.pop(context); // Retour à Home
+              break;
+            case 1:
+              // Recherche désactivée pour propriétaire
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: Text(
+                      'La recherche est réservée aux locataires'),
+                  backgroundColor: Colors.orange,
+                ),
+              );
+              break;
+            case 2:
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => AddItemPage()),
+              );
+              break;
+            case 3:
+              // Icône ⭐ → Page des avis reçus
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (context) => OwnerReviewsPage()),
+              );
+              break;
+            case 4:
+              // Déjà sur le dashboard
+              break;
+          }
+        },
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: Color(0xFF6B4EFF),
+        unselectedItemColor: Colors.grey,
+        showSelectedLabels: false,
+        showUnselectedLabels: false,
+        items: [
+          BottomNavigationBarItem(
+              icon: Icon(Icons.home), label: ''),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.search), label: ''),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.add_circle_outline), label: ''),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.star_outline), label: ''), // ← Avis
+          BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline), label: ''),
+        ],
+      ),
     );
   }
 
@@ -388,7 +461,8 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                   height: 80,
                   color: Colors.grey.shade100,
                   child: Center(
-                    child: _buildImage(reservation.itemImage, height: 70),
+                    child: _buildImage(reservation.itemImage,
+                        height: 70),
                   ),
                 ),
               ),
@@ -399,7 +473,8 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                   children: [
                     Text(reservation.itemTitle,
                         style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 16)),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16)),
                     SizedBox(height: 4),
                     Row(children: [
                       Icon(Icons.person, size: 14, color: Colors.grey),
@@ -497,7 +572,7 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Image - CORRIGÉ Base64 + Asset
+          // Image
           Expanded(
             child: Container(
               decoration: BoxDecoration(
@@ -521,7 +596,9 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                       item.isAvailable
                           ? Icons.check_circle
                           : Icons.cancel,
-                      color: item.isAvailable ? Colors.green : Colors.red,
+                      color: item.isAvailable
+                          ? Colors.green
+                          : Colors.red,
                       size: 16,
                     ),
                     SizedBox(width: 4),
@@ -547,10 +624,9 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 SizedBox(height: 8),
-                // Boutons Modifier et Supprimer - FONCTIONNELS
+                // Boutons Modifier et Supprimer
                 Row(
                   children: [
-                    // Bouton Modifier
                     GestureDetector(
                       onTap: () {
                         Navigator.push(
@@ -572,7 +648,6 @@ class _OwnerDashboardState extends State<OwnerDashboard> {
                       ),
                     ),
                     SizedBox(width: 8),
-                    // Bouton Supprimer
                     GestureDetector(
                       onTap: () => _deleteItem(context, item),
                       child: Container(
